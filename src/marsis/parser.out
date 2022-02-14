@@ -1,0 +1,719 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    COMMENT
+
+Grammar
+
+Rule 0     S' -> label
+Rule 1     label -> record
+Rule 2     label -> label record
+Rule 3     label -> label END
+Rule 4     record -> WORD = value
+Rule 5     record -> POINTER = INT
+Rule 6     record -> POINTER = STRING
+Rule 7     record -> POINTER = ( STRING , INT )
+Rule 8     value -> STRING
+Rule 9     value -> DATE
+Rule 10    value -> WORD
+Rule 11    value -> DSID
+Rule 12    value -> number
+Rule 13    value -> number UNIT
+Rule 14    value -> sequence
+Rule 15    number -> INT
+Rule 16    number -> REAL
+Rule 17    sequence -> ( value )
+Rule 18    sequence -> ( sequence_values )
+Rule 19    sequence -> { value }
+Rule 20    sequence -> { sequence_values }
+Rule 21    sequence_values -> value ,
+Rule 22    sequence_values -> sequence_values value ,
+Rule 23    sequence_values -> sequence_values value
+
+Terminals, with rules where they appear
+
+(                    : 7 17 18
+)                    : 7 17 18
+,                    : 7 21 22
+=                    : 4 5 6 7
+COMMENT              : 
+DATE                 : 9
+DSID                 : 11
+END                  : 3
+INT                  : 5 7 15
+POINTER              : 5 6 7
+REAL                 : 16
+STRING               : 6 7 8
+UNIT                 : 13
+WORD                 : 4 10
+error                : 
+{                    : 19 20
+}                    : 19 20
+
+Nonterminals, with rules where they appear
+
+label                : 2 3 0
+number               : 12 13
+record               : 1 2
+sequence             : 14
+sequence_values      : 18 20 22 23
+value                : 4 17 19 21 22 23
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . label
+    (1) label -> . record
+    (2) label -> . label record
+    (3) label -> . label END
+    (4) record -> . WORD = value
+    (5) record -> . POINTER = INT
+    (6) record -> . POINTER = STRING
+    (7) record -> . POINTER = ( STRING , INT )
+
+    WORD            shift and go to state 3
+    POINTER         shift and go to state 4
+
+    label                          shift and go to state 1
+    record                         shift and go to state 2
+
+state 1
+
+    (0) S' -> label .
+    (2) label -> label . record
+    (3) label -> label . END
+    (4) record -> . WORD = value
+    (5) record -> . POINTER = INT
+    (6) record -> . POINTER = STRING
+    (7) record -> . POINTER = ( STRING , INT )
+
+    END             shift and go to state 6
+    WORD            shift and go to state 3
+    POINTER         shift and go to state 4
+
+    record                         shift and go to state 5
+
+state 2
+
+    (1) label -> record .
+
+    END             reduce using rule 1 (label -> record .)
+    WORD            reduce using rule 1 (label -> record .)
+    POINTER         reduce using rule 1 (label -> record .)
+    $end            reduce using rule 1 (label -> record .)
+
+
+state 3
+
+    (4) record -> WORD . = value
+
+    =               shift and go to state 7
+
+
+state 4
+
+    (5) record -> POINTER . = INT
+    (6) record -> POINTER . = STRING
+    (7) record -> POINTER . = ( STRING , INT )
+
+    =               shift and go to state 8
+
+
+state 5
+
+    (2) label -> label record .
+
+    END             reduce using rule 2 (label -> label record .)
+    WORD            reduce using rule 2 (label -> label record .)
+    POINTER         reduce using rule 2 (label -> label record .)
+    $end            reduce using rule 2 (label -> label record .)
+
+
+state 6
+
+    (3) label -> label END .
+
+    END             reduce using rule 3 (label -> label END .)
+    WORD            reduce using rule 3 (label -> label END .)
+    POINTER         reduce using rule 3 (label -> label END .)
+    $end            reduce using rule 3 (label -> label END .)
+
+
+state 7
+
+    (4) record -> WORD = . value
+    (8) value -> . STRING
+    (9) value -> . DATE
+    (10) value -> . WORD
+    (11) value -> . DSID
+    (12) value -> . number
+    (13) value -> . number UNIT
+    (14) value -> . sequence
+    (15) number -> . INT
+    (16) number -> . REAL
+    (17) sequence -> . ( value )
+    (18) sequence -> . ( sequence_values )
+    (19) sequence -> . { value }
+    (20) sequence -> . { sequence_values }
+
+    STRING          shift and go to state 11
+    DATE            shift and go to state 12
+    WORD            shift and go to state 9
+    DSID            shift and go to state 13
+    INT             shift and go to state 16
+    REAL            shift and go to state 17
+    (               shift and go to state 18
+    {               shift and go to state 19
+
+    value                          shift and go to state 10
+    number                         shift and go to state 14
+    sequence                       shift and go to state 15
+
+state 8
+
+    (5) record -> POINTER = . INT
+    (6) record -> POINTER = . STRING
+    (7) record -> POINTER = . ( STRING , INT )
+
+    INT             shift and go to state 20
+    STRING          shift and go to state 21
+    (               shift and go to state 22
+
+
+state 9
+
+    (10) value -> WORD .
+
+    END             reduce using rule 10 (value -> WORD .)
+    WORD            reduce using rule 10 (value -> WORD .)
+    POINTER         reduce using rule 10 (value -> WORD .)
+    $end            reduce using rule 10 (value -> WORD .)
+    )               reduce using rule 10 (value -> WORD .)
+    ,               reduce using rule 10 (value -> WORD .)
+    }               reduce using rule 10 (value -> WORD .)
+    STRING          reduce using rule 10 (value -> WORD .)
+    DATE            reduce using rule 10 (value -> WORD .)
+    DSID            reduce using rule 10 (value -> WORD .)
+    INT             reduce using rule 10 (value -> WORD .)
+    REAL            reduce using rule 10 (value -> WORD .)
+    (               reduce using rule 10 (value -> WORD .)
+    {               reduce using rule 10 (value -> WORD .)
+
+
+state 10
+
+    (4) record -> WORD = value .
+
+    END             reduce using rule 4 (record -> WORD = value .)
+    WORD            reduce using rule 4 (record -> WORD = value .)
+    POINTER         reduce using rule 4 (record -> WORD = value .)
+    $end            reduce using rule 4 (record -> WORD = value .)
+
+
+state 11
+
+    (8) value -> STRING .
+
+    END             reduce using rule 8 (value -> STRING .)
+    WORD            reduce using rule 8 (value -> STRING .)
+    POINTER         reduce using rule 8 (value -> STRING .)
+    $end            reduce using rule 8 (value -> STRING .)
+    )               reduce using rule 8 (value -> STRING .)
+    ,               reduce using rule 8 (value -> STRING .)
+    }               reduce using rule 8 (value -> STRING .)
+    STRING          reduce using rule 8 (value -> STRING .)
+    DATE            reduce using rule 8 (value -> STRING .)
+    DSID            reduce using rule 8 (value -> STRING .)
+    INT             reduce using rule 8 (value -> STRING .)
+    REAL            reduce using rule 8 (value -> STRING .)
+    (               reduce using rule 8 (value -> STRING .)
+    {               reduce using rule 8 (value -> STRING .)
+
+
+state 12
+
+    (9) value -> DATE .
+
+    END             reduce using rule 9 (value -> DATE .)
+    WORD            reduce using rule 9 (value -> DATE .)
+    POINTER         reduce using rule 9 (value -> DATE .)
+    $end            reduce using rule 9 (value -> DATE .)
+    )               reduce using rule 9 (value -> DATE .)
+    ,               reduce using rule 9 (value -> DATE .)
+    }               reduce using rule 9 (value -> DATE .)
+    STRING          reduce using rule 9 (value -> DATE .)
+    DATE            reduce using rule 9 (value -> DATE .)
+    DSID            reduce using rule 9 (value -> DATE .)
+    INT             reduce using rule 9 (value -> DATE .)
+    REAL            reduce using rule 9 (value -> DATE .)
+    (               reduce using rule 9 (value -> DATE .)
+    {               reduce using rule 9 (value -> DATE .)
+
+
+state 13
+
+    (11) value -> DSID .
+
+    END             reduce using rule 11 (value -> DSID .)
+    WORD            reduce using rule 11 (value -> DSID .)
+    POINTER         reduce using rule 11 (value -> DSID .)
+    $end            reduce using rule 11 (value -> DSID .)
+    )               reduce using rule 11 (value -> DSID .)
+    ,               reduce using rule 11 (value -> DSID .)
+    }               reduce using rule 11 (value -> DSID .)
+    STRING          reduce using rule 11 (value -> DSID .)
+    DATE            reduce using rule 11 (value -> DSID .)
+    DSID            reduce using rule 11 (value -> DSID .)
+    INT             reduce using rule 11 (value -> DSID .)
+    REAL            reduce using rule 11 (value -> DSID .)
+    (               reduce using rule 11 (value -> DSID .)
+    {               reduce using rule 11 (value -> DSID .)
+
+
+state 14
+
+    (12) value -> number .
+    (13) value -> number . UNIT
+
+    END             reduce using rule 12 (value -> number .)
+    WORD            reduce using rule 12 (value -> number .)
+    POINTER         reduce using rule 12 (value -> number .)
+    $end            reduce using rule 12 (value -> number .)
+    )               reduce using rule 12 (value -> number .)
+    ,               reduce using rule 12 (value -> number .)
+    }               reduce using rule 12 (value -> number .)
+    STRING          reduce using rule 12 (value -> number .)
+    DATE            reduce using rule 12 (value -> number .)
+    DSID            reduce using rule 12 (value -> number .)
+    INT             reduce using rule 12 (value -> number .)
+    REAL            reduce using rule 12 (value -> number .)
+    (               reduce using rule 12 (value -> number .)
+    {               reduce using rule 12 (value -> number .)
+    UNIT            shift and go to state 23
+
+
+state 15
+
+    (14) value -> sequence .
+
+    END             reduce using rule 14 (value -> sequence .)
+    WORD            reduce using rule 14 (value -> sequence .)
+    POINTER         reduce using rule 14 (value -> sequence .)
+    $end            reduce using rule 14 (value -> sequence .)
+    )               reduce using rule 14 (value -> sequence .)
+    ,               reduce using rule 14 (value -> sequence .)
+    }               reduce using rule 14 (value -> sequence .)
+    STRING          reduce using rule 14 (value -> sequence .)
+    DATE            reduce using rule 14 (value -> sequence .)
+    DSID            reduce using rule 14 (value -> sequence .)
+    INT             reduce using rule 14 (value -> sequence .)
+    REAL            reduce using rule 14 (value -> sequence .)
+    (               reduce using rule 14 (value -> sequence .)
+    {               reduce using rule 14 (value -> sequence .)
+
+
+state 16
+
+    (15) number -> INT .
+
+    UNIT            reduce using rule 15 (number -> INT .)
+    END             reduce using rule 15 (number -> INT .)
+    WORD            reduce using rule 15 (number -> INT .)
+    POINTER         reduce using rule 15 (number -> INT .)
+    $end            reduce using rule 15 (number -> INT .)
+    )               reduce using rule 15 (number -> INT .)
+    ,               reduce using rule 15 (number -> INT .)
+    }               reduce using rule 15 (number -> INT .)
+    STRING          reduce using rule 15 (number -> INT .)
+    DATE            reduce using rule 15 (number -> INT .)
+    DSID            reduce using rule 15 (number -> INT .)
+    INT             reduce using rule 15 (number -> INT .)
+    REAL            reduce using rule 15 (number -> INT .)
+    (               reduce using rule 15 (number -> INT .)
+    {               reduce using rule 15 (number -> INT .)
+
+
+state 17
+
+    (16) number -> REAL .
+
+    UNIT            reduce using rule 16 (number -> REAL .)
+    END             reduce using rule 16 (number -> REAL .)
+    WORD            reduce using rule 16 (number -> REAL .)
+    POINTER         reduce using rule 16 (number -> REAL .)
+    $end            reduce using rule 16 (number -> REAL .)
+    )               reduce using rule 16 (number -> REAL .)
+    ,               reduce using rule 16 (number -> REAL .)
+    }               reduce using rule 16 (number -> REAL .)
+    STRING          reduce using rule 16 (number -> REAL .)
+    DATE            reduce using rule 16 (number -> REAL .)
+    DSID            reduce using rule 16 (number -> REAL .)
+    INT             reduce using rule 16 (number -> REAL .)
+    REAL            reduce using rule 16 (number -> REAL .)
+    (               reduce using rule 16 (number -> REAL .)
+    {               reduce using rule 16 (number -> REAL .)
+
+
+state 18
+
+    (17) sequence -> ( . value )
+    (18) sequence -> ( . sequence_values )
+    (8) value -> . STRING
+    (9) value -> . DATE
+    (10) value -> . WORD
+    (11) value -> . DSID
+    (12) value -> . number
+    (13) value -> . number UNIT
+    (14) value -> . sequence
+    (21) sequence_values -> . value ,
+    (22) sequence_values -> . sequence_values value ,
+    (23) sequence_values -> . sequence_values value
+    (15) number -> . INT
+    (16) number -> . REAL
+    (17) sequence -> . ( value )
+    (18) sequence -> . ( sequence_values )
+    (19) sequence -> . { value }
+    (20) sequence -> . { sequence_values }
+
+    STRING          shift and go to state 11
+    DATE            shift and go to state 12
+    WORD            shift and go to state 9
+    DSID            shift and go to state 13
+    INT             shift and go to state 16
+    REAL            shift and go to state 17
+    (               shift and go to state 18
+    {               shift and go to state 19
+
+    value                          shift and go to state 24
+    sequence_values                shift and go to state 25
+    number                         shift and go to state 14
+    sequence                       shift and go to state 15
+
+state 19
+
+    (19) sequence -> { . value }
+    (20) sequence -> { . sequence_values }
+    (8) value -> . STRING
+    (9) value -> . DATE
+    (10) value -> . WORD
+    (11) value -> . DSID
+    (12) value -> . number
+    (13) value -> . number UNIT
+    (14) value -> . sequence
+    (21) sequence_values -> . value ,
+    (22) sequence_values -> . sequence_values value ,
+    (23) sequence_values -> . sequence_values value
+    (15) number -> . INT
+    (16) number -> . REAL
+    (17) sequence -> . ( value )
+    (18) sequence -> . ( sequence_values )
+    (19) sequence -> . { value }
+    (20) sequence -> . { sequence_values }
+
+    STRING          shift and go to state 11
+    DATE            shift and go to state 12
+    WORD            shift and go to state 9
+    DSID            shift and go to state 13
+    INT             shift and go to state 16
+    REAL            shift and go to state 17
+    (               shift and go to state 18
+    {               shift and go to state 19
+
+    value                          shift and go to state 26
+    sequence_values                shift and go to state 27
+    number                         shift and go to state 14
+    sequence                       shift and go to state 15
+
+state 20
+
+    (5) record -> POINTER = INT .
+
+    END             reduce using rule 5 (record -> POINTER = INT .)
+    WORD            reduce using rule 5 (record -> POINTER = INT .)
+    POINTER         reduce using rule 5 (record -> POINTER = INT .)
+    $end            reduce using rule 5 (record -> POINTER = INT .)
+
+
+state 21
+
+    (6) record -> POINTER = STRING .
+
+    END             reduce using rule 6 (record -> POINTER = STRING .)
+    WORD            reduce using rule 6 (record -> POINTER = STRING .)
+    POINTER         reduce using rule 6 (record -> POINTER = STRING .)
+    $end            reduce using rule 6 (record -> POINTER = STRING .)
+
+
+state 22
+
+    (7) record -> POINTER = ( . STRING , INT )
+
+    STRING          shift and go to state 28
+
+
+state 23
+
+    (13) value -> number UNIT .
+
+    END             reduce using rule 13 (value -> number UNIT .)
+    WORD            reduce using rule 13 (value -> number UNIT .)
+    POINTER         reduce using rule 13 (value -> number UNIT .)
+    $end            reduce using rule 13 (value -> number UNIT .)
+    )               reduce using rule 13 (value -> number UNIT .)
+    ,               reduce using rule 13 (value -> number UNIT .)
+    }               reduce using rule 13 (value -> number UNIT .)
+    STRING          reduce using rule 13 (value -> number UNIT .)
+    DATE            reduce using rule 13 (value -> number UNIT .)
+    DSID            reduce using rule 13 (value -> number UNIT .)
+    INT             reduce using rule 13 (value -> number UNIT .)
+    REAL            reduce using rule 13 (value -> number UNIT .)
+    (               reduce using rule 13 (value -> number UNIT .)
+    {               reduce using rule 13 (value -> number UNIT .)
+
+
+state 24
+
+    (17) sequence -> ( value . )
+    (21) sequence_values -> value . ,
+
+    )               shift and go to state 29
+    ,               shift and go to state 30
+
+
+state 25
+
+    (18) sequence -> ( sequence_values . )
+    (22) sequence_values -> sequence_values . value ,
+    (23) sequence_values -> sequence_values . value
+    (8) value -> . STRING
+    (9) value -> . DATE
+    (10) value -> . WORD
+    (11) value -> . DSID
+    (12) value -> . number
+    (13) value -> . number UNIT
+    (14) value -> . sequence
+    (15) number -> . INT
+    (16) number -> . REAL
+    (17) sequence -> . ( value )
+    (18) sequence -> . ( sequence_values )
+    (19) sequence -> . { value }
+    (20) sequence -> . { sequence_values }
+
+    )               shift and go to state 31
+    STRING          shift and go to state 11
+    DATE            shift and go to state 12
+    WORD            shift and go to state 9
+    DSID            shift and go to state 13
+    INT             shift and go to state 16
+    REAL            shift and go to state 17
+    (               shift and go to state 18
+    {               shift and go to state 19
+
+    value                          shift and go to state 32
+    number                         shift and go to state 14
+    sequence                       shift and go to state 15
+
+state 26
+
+    (19) sequence -> { value . }
+    (21) sequence_values -> value . ,
+
+    }               shift and go to state 33
+    ,               shift and go to state 30
+
+
+state 27
+
+    (20) sequence -> { sequence_values . }
+    (22) sequence_values -> sequence_values . value ,
+    (23) sequence_values -> sequence_values . value
+    (8) value -> . STRING
+    (9) value -> . DATE
+    (10) value -> . WORD
+    (11) value -> . DSID
+    (12) value -> . number
+    (13) value -> . number UNIT
+    (14) value -> . sequence
+    (15) number -> . INT
+    (16) number -> . REAL
+    (17) sequence -> . ( value )
+    (18) sequence -> . ( sequence_values )
+    (19) sequence -> . { value }
+    (20) sequence -> . { sequence_values }
+
+    }               shift and go to state 34
+    STRING          shift and go to state 11
+    DATE            shift and go to state 12
+    WORD            shift and go to state 9
+    DSID            shift and go to state 13
+    INT             shift and go to state 16
+    REAL            shift and go to state 17
+    (               shift and go to state 18
+    {               shift and go to state 19
+
+    value                          shift and go to state 32
+    number                         shift and go to state 14
+    sequence                       shift and go to state 15
+
+state 28
+
+    (7) record -> POINTER = ( STRING . , INT )
+
+    ,               shift and go to state 35
+
+
+state 29
+
+    (17) sequence -> ( value ) .
+
+    END             reduce using rule 17 (sequence -> ( value ) .)
+    WORD            reduce using rule 17 (sequence -> ( value ) .)
+    POINTER         reduce using rule 17 (sequence -> ( value ) .)
+    $end            reduce using rule 17 (sequence -> ( value ) .)
+    )               reduce using rule 17 (sequence -> ( value ) .)
+    ,               reduce using rule 17 (sequence -> ( value ) .)
+    }               reduce using rule 17 (sequence -> ( value ) .)
+    STRING          reduce using rule 17 (sequence -> ( value ) .)
+    DATE            reduce using rule 17 (sequence -> ( value ) .)
+    DSID            reduce using rule 17 (sequence -> ( value ) .)
+    INT             reduce using rule 17 (sequence -> ( value ) .)
+    REAL            reduce using rule 17 (sequence -> ( value ) .)
+    (               reduce using rule 17 (sequence -> ( value ) .)
+    {               reduce using rule 17 (sequence -> ( value ) .)
+
+
+state 30
+
+    (21) sequence_values -> value , .
+
+    )               reduce using rule 21 (sequence_values -> value , .)
+    STRING          reduce using rule 21 (sequence_values -> value , .)
+    DATE            reduce using rule 21 (sequence_values -> value , .)
+    WORD            reduce using rule 21 (sequence_values -> value , .)
+    DSID            reduce using rule 21 (sequence_values -> value , .)
+    INT             reduce using rule 21 (sequence_values -> value , .)
+    REAL            reduce using rule 21 (sequence_values -> value , .)
+    (               reduce using rule 21 (sequence_values -> value , .)
+    {               reduce using rule 21 (sequence_values -> value , .)
+    }               reduce using rule 21 (sequence_values -> value , .)
+
+
+state 31
+
+    (18) sequence -> ( sequence_values ) .
+
+    END             reduce using rule 18 (sequence -> ( sequence_values ) .)
+    WORD            reduce using rule 18 (sequence -> ( sequence_values ) .)
+    POINTER         reduce using rule 18 (sequence -> ( sequence_values ) .)
+    $end            reduce using rule 18 (sequence -> ( sequence_values ) .)
+    )               reduce using rule 18 (sequence -> ( sequence_values ) .)
+    ,               reduce using rule 18 (sequence -> ( sequence_values ) .)
+    }               reduce using rule 18 (sequence -> ( sequence_values ) .)
+    STRING          reduce using rule 18 (sequence -> ( sequence_values ) .)
+    DATE            reduce using rule 18 (sequence -> ( sequence_values ) .)
+    DSID            reduce using rule 18 (sequence -> ( sequence_values ) .)
+    INT             reduce using rule 18 (sequence -> ( sequence_values ) .)
+    REAL            reduce using rule 18 (sequence -> ( sequence_values ) .)
+    (               reduce using rule 18 (sequence -> ( sequence_values ) .)
+    {               reduce using rule 18 (sequence -> ( sequence_values ) .)
+
+
+state 32
+
+    (22) sequence_values -> sequence_values value . ,
+    (23) sequence_values -> sequence_values value .
+
+    ,               shift and go to state 36
+    )               reduce using rule 23 (sequence_values -> sequence_values value .)
+    STRING          reduce using rule 23 (sequence_values -> sequence_values value .)
+    DATE            reduce using rule 23 (sequence_values -> sequence_values value .)
+    WORD            reduce using rule 23 (sequence_values -> sequence_values value .)
+    DSID            reduce using rule 23 (sequence_values -> sequence_values value .)
+    INT             reduce using rule 23 (sequence_values -> sequence_values value .)
+    REAL            reduce using rule 23 (sequence_values -> sequence_values value .)
+    (               reduce using rule 23 (sequence_values -> sequence_values value .)
+    {               reduce using rule 23 (sequence_values -> sequence_values value .)
+    }               reduce using rule 23 (sequence_values -> sequence_values value .)
+
+
+state 33
+
+    (19) sequence -> { value } .
+
+    END             reduce using rule 19 (sequence -> { value } .)
+    WORD            reduce using rule 19 (sequence -> { value } .)
+    POINTER         reduce using rule 19 (sequence -> { value } .)
+    $end            reduce using rule 19 (sequence -> { value } .)
+    )               reduce using rule 19 (sequence -> { value } .)
+    ,               reduce using rule 19 (sequence -> { value } .)
+    }               reduce using rule 19 (sequence -> { value } .)
+    STRING          reduce using rule 19 (sequence -> { value } .)
+    DATE            reduce using rule 19 (sequence -> { value } .)
+    DSID            reduce using rule 19 (sequence -> { value } .)
+    INT             reduce using rule 19 (sequence -> { value } .)
+    REAL            reduce using rule 19 (sequence -> { value } .)
+    (               reduce using rule 19 (sequence -> { value } .)
+    {               reduce using rule 19 (sequence -> { value } .)
+
+
+state 34
+
+    (20) sequence -> { sequence_values } .
+
+    END             reduce using rule 20 (sequence -> { sequence_values } .)
+    WORD            reduce using rule 20 (sequence -> { sequence_values } .)
+    POINTER         reduce using rule 20 (sequence -> { sequence_values } .)
+    $end            reduce using rule 20 (sequence -> { sequence_values } .)
+    )               reduce using rule 20 (sequence -> { sequence_values } .)
+    ,               reduce using rule 20 (sequence -> { sequence_values } .)
+    }               reduce using rule 20 (sequence -> { sequence_values } .)
+    STRING          reduce using rule 20 (sequence -> { sequence_values } .)
+    DATE            reduce using rule 20 (sequence -> { sequence_values } .)
+    DSID            reduce using rule 20 (sequence -> { sequence_values } .)
+    INT             reduce using rule 20 (sequence -> { sequence_values } .)
+    REAL            reduce using rule 20 (sequence -> { sequence_values } .)
+    (               reduce using rule 20 (sequence -> { sequence_values } .)
+    {               reduce using rule 20 (sequence -> { sequence_values } .)
+
+
+state 35
+
+    (7) record -> POINTER = ( STRING , . INT )
+
+    INT             shift and go to state 37
+
+
+state 36
+
+    (22) sequence_values -> sequence_values value , .
+
+    )               reduce using rule 22 (sequence_values -> sequence_values value , .)
+    STRING          reduce using rule 22 (sequence_values -> sequence_values value , .)
+    DATE            reduce using rule 22 (sequence_values -> sequence_values value , .)
+    WORD            reduce using rule 22 (sequence_values -> sequence_values value , .)
+    DSID            reduce using rule 22 (sequence_values -> sequence_values value , .)
+    INT             reduce using rule 22 (sequence_values -> sequence_values value , .)
+    REAL            reduce using rule 22 (sequence_values -> sequence_values value , .)
+    (               reduce using rule 22 (sequence_values -> sequence_values value , .)
+    {               reduce using rule 22 (sequence_values -> sequence_values value , .)
+    }               reduce using rule 22 (sequence_values -> sequence_values value , .)
+
+
+state 37
+
+    (7) record -> POINTER = ( STRING , INT . )
+
+    )               shift and go to state 38
+
+
+state 38
+
+    (7) record -> POINTER = ( STRING , INT ) .
+
+    END             reduce using rule 7 (record -> POINTER = ( STRING , INT ) .)
+    WORD            reduce using rule 7 (record -> POINTER = ( STRING , INT ) .)
+    POINTER         reduce using rule 7 (record -> POINTER = ( STRING , INT ) .)
+    $end            reduce using rule 7 (record -> POINTER = ( STRING , INT ) .)
+

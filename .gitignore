@@ -1,0 +1,13 @@
+# PDS Files
+*.dat
+*.lbl
+
+# Debugging file
+coeffs.txt
+
+# pycache
+src/marsis/__pycache__
+
+# dist
+dist/
+src/marsis.egg-info
