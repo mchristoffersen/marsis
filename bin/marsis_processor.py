@@ -3,10 +3,28 @@
 import argparse
 import os
 import sys
+import multiprocessing
 
 import numpy as np
 
+sys.path.append('/home/mchristo/proj/marsis-processor/src/')
 import marsis
+
+def process(lblPath):
+    edr = marsis.EDR(lblPath)
+    nav = edr.geo[["SUB_SC_LATITUDE", "SUB_SC_LONGITUDE", "SPACECRAFT_ALTITUDE"]]
+    with open(edr.lbld["PRODUCT_ID"].lower() + "_nav.csv", "w") as fd:
+        fd.write(",".join(nav.dtype.names) + "\n")
+        np.savetxt(fd, nav, "%.6f", ",")
+    f1, f2 = marsis.campbell(edr)
+
+    # Write out radargram and nav products
+    f1Path = args.out + "/" + track.lower() + "_f1.img"
+    f2Path = args.out + "/" + track.lower() + "_f2.img"
+
+    f1.T.tofile(f1Path)
+    f2.T.tofile(f2Path)
+
 
 # CLI
 parser = argparse.ArgumentParser(description="Process MARSIS EDRs")
@@ -16,6 +34,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "-c", "--cache", type=str, help="EDR cache (Default = ./)", default="./"
+)
+parser.add_argument(
+    "-n", "--num_proc", type=int, help="Number of processes to spawn (Default = 1)", default=1
 )
 args = parser.parse_args()
 
@@ -38,22 +59,12 @@ tracks = fd.read().split()
 fd.close()
 
 # Fetch files
-marsis.fetch(tracks, args.cache)
+marsis.fetch(tracks, args.cache, clobber=False)
 
 # Generate EDR and process each file
+lbls = []
 for track in tracks:
-    lblPath = args.cache + "/" + track.lower() + ".lbl"
-    edr = marsis.EDR(lblPath)
-    nav = edr.geo[["SUB_SC_LATITUDE", "SUB_SC_LONGITUDE", "SPACECRAFT_ALTITUDE"]]
-    with open(edr.lbld["PRODUCT_ID"].lower() + "_nav.csv", "w") as fd:
-        fd.write(",".join(nav.dtype.names) + "\n")
-        np.savetxt(fd, nav, "%.6f", ",")
-    print(nav)
-    f1, f2 = marsis.campbell(edr)
+    lbls.append(args.cache + "/" + track.lower() + ".lbl")
 
-    # Write out radargram and nav products
-    f1Path = args.out + "/" + track.lower() + "_f1.img"
-    f2Path = args.out + "/" + track.lower() + "_f2.img"
-
-    f1.T.tofile(f1Path)
-    f2.T.tofile(f2Path)
+with multiprocessing.Pool(args.num_proc) as pool:
+    pool.map(process, lbls)

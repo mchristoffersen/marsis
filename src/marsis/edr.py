@@ -320,7 +320,7 @@ class EDR:
         literals = ["(", ")", ",", "=", "{", "}"]
 
         def t_DSID(t):
-            r"MEX-M-MARSIS-2-EDR-EXT[0-9]-V[0-9].0"  # Dataset ID
+            r"MEX-M-MARSIS-2-EDR(-EXT[0-9])?-V[0-9].0"  # Dataset ID
             return t
 
         def t_WORD(t):

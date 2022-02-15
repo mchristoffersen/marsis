@@ -166,8 +166,8 @@ def campbell(edr):
     try:
         switchIdx = np.where(dcg[:-1] != dcg[1:])[0][0]
     except IndexError:
-        switchIdx = None
-        print("No freq switch!!!")
+        switchIdx = len(dcg)-4
+        print("No freq switch - using last 3 frames as temp fix")
 
     f1 = edr.data["ZERO_F1"]
     f2 = edr.data["ZERO_F2"]
@@ -261,8 +261,10 @@ def campbell(edr):
     xyz = edr.geo["TARGET_SC_POSITION_VECTOR"] * 1e3
     # dem = rio.open("https://mchristo.net/data/MOLA_SHARAD_128ppd_radius_tiled.tif", "r")
     dem = rio.open(
-        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
+        "/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r"
     )
+#        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
+#    )
 
     demX, demY, demZ = pyproj.transform(
         xyzcrs, dem.crs, xyz[:, 0], xyz[:, 1], xyz[:, 2]

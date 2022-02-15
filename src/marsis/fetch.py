@@ -1,4 +1,5 @@
 import io
+import os
 import re
 import sys
 import urllib.request
@@ -6,7 +7,7 @@ import urllib.request
 import pandas as pd
 
 
-def fetch(tracks, path, v=0):
+def fetch(tracks, path, clobber=True):
     """Download MARSIS data from the PDS.
 
     Download MARSIS data from the PDS by searching the PDS
@@ -19,6 +20,8 @@ def fetch(tracks, path, v=0):
         format "E_XXXXX_SS3_TRK_CMP_M"
     path: str
         Path to directory where the MARSIS data files will be downloaded to
+    clobber: bool
+        Whether to overwrite (re-download) files at path
 
     Returns
     -------
@@ -84,19 +87,21 @@ def fetch(tracks, path, v=0):
             geo = lbl.replace(".lbl", "_g.dat")
             sci = lbl.replace(".lbl", "_f.dat")
 
-            lbl_filename, headers = urllib.request.urlretrieve(
-                lbl, path + "/" + lbl.split("/")[-1]
-            )
-            geo_filename, headers = urllib.request.urlretrieve(
-                geo, path + "/" + geo.split("/")[-1]
-            )
-            sci_filename, headers = urllib.request.urlretrieve(
-                sci, path + "/" + sci.split("/")[-1]
-            )
+            lbl_path = path + "/" + lbl.split("/")[-1]
+            if clobber or not os.path.isfile(lbl_path):
+                lbl_path, headers = urllib.request.urlretrieve(lbl, lbl_path)
 
-            files.append(lbl_filename)
-            files.append(geo_filename)
-            files.append(sci_filename)
+            geo_path = path + "/" + geo.split("/")[-1]
+            if clobber or not os.path.isfile(geo_path):
+                geo_path, headers = urllib.request.urlretrieve(geo, geo_path)
+
+            sci_path = path + "/" + sci.split("/")[-1]
+            if clobber or not os.path.isfile(sci_path):
+                sci_path, headers = urllib.request.urlretrieve(sci, sci_path)
+
+            files.append(lbl_path)
+            files.append(geo_path)
+            files.append(sci_path)
 
     except Exception as e:
         print(e, file=sys.stderr)
