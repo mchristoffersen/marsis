@@ -69,6 +69,7 @@ def pc_Contrast(b, DATA, ttrig):
 
 
 def pc_SNR(b, DATA, ttrig):
+    np.seterr(all='raise')
     data = pc(b, DATA, ttrig)
 
     # Calculate summed SNR for the track
@@ -80,8 +81,10 @@ def pc_SNR(b, DATA, ttrig):
     for i in range(data.shape[1]):
         kernel = np.ones(32)
         smooth = np.correlate(data[:, i], kernel, mode="valid")
-        data[:, i] = data[:, i] / np.min(smooth)
-
+        ms =  np.min(smooth)
+        if ms == 0:
+            ms = 1
+        data[:, i] = data[:, i] / ms
     # N = np.mean(np.abs(data[:32, :]), axis=0)
     # S = np.max(np.abs(data), axis=0)
 
@@ -261,10 +264,11 @@ def campbell(edr):
     xyz = edr.geo["TARGET_SC_POSITION_VECTOR"] * 1e3
     # dem = rio.open("https://mchristo.net/data/MOLA_SHARAD_128ppd_radius_tiled.tif", "r")
     dem = rio.open(
-        "/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r"
+        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
     )
-#        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
-#    )
+    #    "/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r"
+    #)
+
 
     demX, demY, demZ = pyproj.transform(
         xyzcrs, dem.crs, xyz[:, 0], xyz[:, 1], xyz[:, 2]

@@ -10,6 +10,7 @@ import numpy as np
 sys.path.append('/home/mchristo/proj/marsis-processor/src/')
 import marsis
 
+
 def process(lblPath):
     edr = marsis.EDR(lblPath)
     nav = edr.geo[["SUB_SC_LATITUDE", "SUB_SC_LONGITUDE", "SPACECRAFT_ALTITUDE"]]
@@ -24,6 +25,9 @@ def process(lblPath):
 
     f1.T.tofile(f1Path)
     f2.T.tofile(f2Path)
+
+    marsis.gen_tiff(f1, f1Path.replace(".img", ".tif"))
+    marsis.gen_tiff(f2, f2Path.replace(".img", ".tif"))
 
 
 # CLI
