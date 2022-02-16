@@ -270,7 +270,9 @@ def campbell(edr):
     xyz = edr.geo["TARGET_SC_POSITION_VECTOR"] * 1e3
     # dem = rio.open("https://mchristo.net/data/MOLA_SHARAD_128ppd_radius_tiled.tif", "r")
     # dem = rio.open("/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r")
-    dem = rio.open("/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r" )
+    dem = rio.open(
+        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
+    )
 
     demX, demY, demZ = pyproj.transform(
         xyzcrs, dem.crs, xyz[:, 0], xyz[:, 1], xyz[:, 2]
