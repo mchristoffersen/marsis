@@ -246,11 +246,17 @@ def campbell(edr):
     kernel = np.ones(32)
     for i in range(rgF1.shape[1]):
         smooth = np.correlate(rgF1[:, i], kernel, mode="valid")
-        rgF1[:, i] = rgF1[:, i] / np.min(smooth)
+        ms = np.min(smooth)
+        if ms == 0:
+            ms = 1
+        rgF1[:, i] = rgF1[:, i] / ms
 
     for i in range(rgF2.shape[1]):
         smooth = np.correlate(rgF2[:, i], kernel, mode="valid")
-        rgF2[:, i] = rgF2[:, i] / np.min(smooth)
+        ms = np.min(smooth)
+        if ms == 0:
+            ms = 1
+        rgF2[:, i] = rgF2[:, i] / ms
 
     # Correct to MOLA surface
     # srfF1 = np.argmax(rgF1 > thld, axis=0)
@@ -264,10 +270,9 @@ def campbell(edr):
     xyz = edr.geo["TARGET_SC_POSITION_VECTOR"] * 1e3
     # dem = rio.open("https://mchristo.net/data/MOLA_SHARAD_128ppd_radius_tiled.tif", "r")
     dem = rio.open(
-        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
+        "/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r"
     )
-    #    "/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r"
-    #)
+#        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r" )
 
 
     demX, demY, demZ = pyproj.transform(
