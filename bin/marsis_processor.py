@@ -20,14 +20,19 @@ def process(lblPath):
     f1, f2 = marsis.campbell(edr)
 
     # Write out radargram and nav products
-    f1Path = args.out + "/" + track.lower() + "_f1.img"
-    f2Path = args.out + "/" + track.lower() + "_f2.img"
+    #f1Path = args.out + "/" + track.lower() + "_f1.img"
+    #f2Path = args.out + "/" + track.lower() + "_f2.img"
+
+    f1Path = lblPath.replace(".lbl", "_f1.img")
+    f2Path = lblPath.replace(".lbl", "_f2.img")
 
     f1.T.tofile(f1Path)
     f2.T.tofile(f2Path)
 
     marsis.gen_tiff(f1, f1Path.replace(".img", ".tif"))
     marsis.gen_tiff(f2, f2Path.replace(".img", ".tif"))
+
+    return 0
 
 
 # CLI
