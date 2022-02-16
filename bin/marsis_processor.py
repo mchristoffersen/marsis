@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 import argparse
+import multiprocessing
 import os
 import sys
-import multiprocessing
 
 import numpy as np
 
-sys.path.append('/home/mchristo/proj/marsis-processor/src/')
+sys.path.append("/home/mchristo/proj/marsis-processor/src/")
 import marsis
 
 
@@ -40,7 +40,11 @@ parser.add_argument(
     "-c", "--cache", type=str, help="EDR cache (Default = ./)", default="./"
 )
 parser.add_argument(
-    "-n", "--num_proc", type=int, help="Number of processes to spawn (Default = 1)", default=1
+    "-n",
+    "--num_proc",
+    type=int,
+    help="Number of processes to spawn (Default = 1)",
+    default=1,
 )
 args = parser.parse_args()
 

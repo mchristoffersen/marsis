@@ -69,7 +69,7 @@ def pc_Contrast(b, DATA, ttrig):
 
 
 def pc_SNR(b, DATA, ttrig):
-    np.seterr(all='raise')
+    np.seterr(all="raise")
     data = pc(b, DATA, ttrig)
 
     # Calculate summed SNR for the track
@@ -81,7 +81,7 @@ def pc_SNR(b, DATA, ttrig):
     for i in range(data.shape[1]):
         kernel = np.ones(32)
         smooth = np.correlate(data[:, i], kernel, mode="valid")
-        ms =  np.min(smooth)
+        ms = np.min(smooth)
         if ms == 0:
             ms = 1
         data[:, i] = data[:, i] / ms
@@ -169,7 +169,7 @@ def campbell(edr):
     try:
         switchIdx = np.where(dcg[:-1] != dcg[1:])[0][0]
     except IndexError:
-        switchIdx = len(dcg)-4
+        switchIdx = len(dcg) - 4
         print("No freq switch - using last 3 frames as temp fix")
 
     f1 = edr.data["ZERO_F1"]
@@ -267,8 +267,7 @@ def campbell(edr):
         "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
     )
     #    "/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r"
-    #)
-
+    # )
 
     demX, demY, demZ = pyproj.transform(
         xyzcrs, dem.crs, xyz[:, 0], xyz[:, 1], xyz[:, 2]
