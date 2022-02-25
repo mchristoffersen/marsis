@@ -23,7 +23,7 @@ def lsindx(length):
     return np.arange(length) / 100 + 1
 
 
-def bcOptimize(DATA, ttrig, init=None):
+def contrastFit(DATA, ttrig, init=None):
     # Run contrast method over reasonable value and fit curve to it
     # as initial guess for optimization
     m = np.linspace(4e9, 8e9, 100)
@@ -40,15 +40,25 @@ def bcOptimize(DATA, ttrig, init=None):
     # print(A.T)
     init = scipy.linalg.lstsq(A.T, b)[0]
 
-    # init = []
-    # for i in range(1, 7):
-    #    init.append(fit(b, i))
-    # init = fit(b, 5)
+    return init
 
-    # y = init[0] + init[1]*indx + init[2]*indx**2 + init[3]*indx**3 + init[4]*indx**4 + init[5]*indx**5
-    # plt.plot(indx, b, '.')
-    # plt.plot(indx, y)
-    # plt.show()
+
+def bcOptimize(DATA, ttrig, init=None):
+    # Run contrast method over reasonable value and fit curve to it
+    # as initial guess for optimization
+    m = np.linspace(4e9, 8e9, 100)
+    c = np.zeros((len(m), DATA.shape[1]))
+
+    for j in range(DATA.shape[1]):
+        for i in range(len(m)):
+            c[i, j] = pc_Contrast([m[i]], DATA[:, j], ttrig)
+
+    # Least squares fit
+    b = m[np.argmin(c, axis=0)]
+    indx = lsindx(len(b))
+    A = np.vstack((indx ** 0, indx ** 1, indx ** 2, indx ** 3, indx ** 4, indx ** 5))
+    # print(A.T)
+    init = scipy.linalg.lstsq(A.T, b)[0]
 
     # Smooth function SNR based optimization
     res = scipy.optimize.minimize(
@@ -148,7 +158,30 @@ def pc(b, DATA, ttrig):
     return np.fft.ifft(DATA, axis=0)
 
 
-def campbell(edr):
+def campbell(edr, cacheIono=False, cache="./", contrast=False):
+    """Campbell style ionospheric correction.
+
+    Fit a smooth function to quadratic phase distortion caused
+    by the ionosphere, where the max SNR of each frame is a used
+    as a goodness metric.
+
+    Parameters
+    ----------
+    edr: EDR
+        EDR object containing the EDR data 
+    path: str
+        Path to directory where the MARSIS data files will be downloaded to
+    clobber: bool
+        Whether to overwrite (re-download) files at path
+
+    Returns
+    -------
+    files: list of str
+        Tuple containing the paths of all files downloaded by this function
+
+    Notes
+    -----
+    """
     c = 299792458
     dt = 1.0 / 1.4e6
 
@@ -159,9 +192,10 @@ def campbell(edr):
         + 256 * dt
     )
     tshiftF2 = (
-        edr.anc["RX_TRIG_SA_PROGR"][:, 1] * (1 / 2.8e6)
+        (edr.anc["RX_TRIG_SA_PROGR"][:, 1]) * (1 / 2.8e6)
         - edr.geo["SPACECRAFT_ALTITUDE"] * 2e3 / c
-        # + 256 * dt # Why do I need to get rid of this??
+        + 256 * dt
+        - 450e-6 # Delay from xmit F1 to xmit F2
     )
 
     # Find when freq switch is (if any)
@@ -175,16 +209,32 @@ def campbell(edr):
     f1 = edr.data["ZERO_F1"]
     f2 = edr.data["ZERO_F2"]
 
+    cacheFile = "%s/%s_coeffs.txt" % (cache, edr.lbld["PRODUCT_ID"].lower())
+    cmt = """
+    if cacheIono:
+        if(os.path.isfile(cacheFile)):
+            fd = open(cacheFile, "r")
+            coeffs = fd.read().split("\n")
+            fd.close()
+            coeffDict = {}
+            for line in coeffs:
+                line = line.split("=")
+                coeffDict[line.]"""
+
     # Independently derive ionosphere correction for lo and hi bands on either
     # side of freq switch
-    bF1B1 = bcOptimize(f1[:, 0 : switchIdx + 1], tshiftF1[0 : switchIdx + 1])
-    bF1B2 = bcOptimize(f1[:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
-    bF2B1 = bcOptimize(f2[:, 0 : switchIdx + 1], tshiftF2[0 : switchIdx + 1])
-    bF2B2 = bcOptimize(f2[:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
+    bF1B1 = [3.801304e+09, 4.824193e+08, -3.974846e+08, 1.417906e+08, -2.275658e+07, 1.368599e+06]
+    bF1B2 = [3.034942e+09, 2.177835e+09, -1.579240e+09, 6.098641e+08, -1.179069e+08, 9.077969e+06]
+    bF2B1 = [3.765602e+09, 7.533984e+08, -6.386451e+08, 2.387207e+08, -4.095473e+07, 2.662571e+06]
+    bF2B2 = [4.735439e+09, -1.711332e+09, 2.068372e+09, -9.596948e+08, 2.112623e+08, -1.734420e+07]
+    #bF1B1 = bcOptimize(f1[:, 0 : switchIdx + 1], tshiftF1[0 : switchIdx + 1])
+    #bF1B2 = bcOptimize(f1[:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
+    #bF2B1 = bcOptimize(f2[:, 0 : switchIdx + 1], tshiftF2[0 : switchIdx + 1])
+    #bF2B2 = bcOptimize(f2[:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
 
     # Write coeffs to file
-    if True:
-        fd = open("%s_coeffs.txt" % edr.lbld["PRODUCT_ID"].lower(), "w")
+    if cacheIono:
+        fd = open(cacheFile, "w")
         elems = "%e, " * len(bF1B1)
         bF1B1Line = "bF1B1 = [" + elems[:-2] + "]\n"
         elems = "%e, " * len(bF1B2)
@@ -205,7 +255,6 @@ def campbell(edr):
     rgF1[:, : switchIdx + 1] += np.abs(
         pc(bF1B1, edr.data["MINUS1_F1"][:, : switchIdx + 1], tshiftF1[: switchIdx + 1])
     )
-
     rgF1[:, : switchIdx + 1] += np.abs(
         pc(bF1B1, edr.data["ZERO_F1"][:, : switchIdx + 1], tshiftF1[: switchIdx + 1])
     )
@@ -242,7 +291,7 @@ def campbell(edr):
         pc(bF2B2, edr.data["PLUS1_F2"][:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
     )
 
-    # Normalize to background for now - wtf is up with AGC info in files?
+    # Normalize to background
     kernel = np.ones(32)
     for i in range(rgF1.shape[1]):
         smooth = np.correlate(rgF1[:, i], kernel, mode="valid")
@@ -262,8 +311,16 @@ def campbell(edr):
     # srfF1 = np.argmax(rgF1 > thld, axis=0)
     # srfF2 = np.argmax(rgF2 > thld, axis=0)
 
-    srfF1 = np.argmax(rgF1, axis=0)
-    srfF2 = np.argmax(rgF2, axis=0)
+    #srfF1 = np.argmax(rgF1, axis=0)
+    #srfF2 = np.argmax(rgF2, axis=0)
+    
+    srfF1 = np.argmax(10*np.log(rgF1) > -15, axis=0)
+    srfF2 = np.argmax(10*np.log(rgF2) > -10, axis=0)
+
+    x = np.arange(len(srfF1))
+    srfF1 = np.interp(x, x[srfF1 != 0], srfF1[srfF1 != 0])
+    srfF2 = np.interp(x, x[srfF2 != 0], srfF2[srfF2 != 0])
+
 
     # MOLA Surface
     xyzcrs = "+proj=geocent +a=3396190 +b=3376200 +no_defs"
@@ -304,9 +361,9 @@ def campbell(edr):
 
     dsF1 = (molasample - srfF1).astype(np.int32)
     dsF2 = (molasample - srfF2).astype(np.int32)
-
+    
     for i in range(rgF1.shape[1]):
         rgF1[:, i] = np.roll(rgF1[:, i], dsF1[i])
         rgF2[:, i] = np.roll(rgF2[:, i], dsF2[i])
-
+        
     return rgF1, rgF2

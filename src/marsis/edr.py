@@ -119,9 +119,19 @@ class EDR:
 
     def decompress(self, trace, exp):
         sign = (-1) ** (trace >> 7)  # Sign bit
-        mantissa = trace & 0x7F
+        mantissa = 1+((trace & 0x7F)/(2.0**7))
+        #mantissa = trace & 0x7F
         trace = sign * mantissa * (2 ** (exp - 127))
         return trace
+    
+    def deagc(self, data, agc):
+        # Take in an array of marsis data
+        # and a vector of AGC settings,
+        # then correct for agc
+        agc = agc & 0x07 # Only last three bits matter
+        agc = agc*4 + 2 # Gain in dB, per Orosei
+        data = data * 10**(agc/20)[np.newaxis, :]
+        return data
 
     def parseSci(self, file, lbld):
         # Set up ancillary data dataframe
@@ -270,6 +280,11 @@ class EDR:
                 band = int(rg.split("_")[1][1])
 
                 block[:, i] = trace
+
+            if("F1" in rg):
+                block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:,0])
+            elif("F2" in rg):
+                block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:,1])
 
             datad[rg] = block
 
