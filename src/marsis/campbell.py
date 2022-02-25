@@ -223,14 +223,10 @@ def campbell(edr, cacheIono=False, cache="./", contrast=False):
 
     # Independently derive ionosphere correction for lo and hi bands on either
     # side of freq switch
-    bF1B1 = [3.801304e+09, 4.824193e+08, -3.974846e+08, 1.417906e+08, -2.275658e+07, 1.368599e+06]
-    bF1B2 = [3.034942e+09, 2.177835e+09, -1.579240e+09, 6.098641e+08, -1.179069e+08, 9.077969e+06]
-    bF2B1 = [3.765602e+09, 7.533984e+08, -6.386451e+08, 2.387207e+08, -4.095473e+07, 2.662571e+06]
-    bF2B2 = [4.735439e+09, -1.711332e+09, 2.068372e+09, -9.596948e+08, 2.112623e+08, -1.734420e+07]
-    #bF1B1 = bcOptimize(f1[:, 0 : switchIdx + 1], tshiftF1[0 : switchIdx + 1])
-    #bF1B2 = bcOptimize(f1[:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
-    #bF2B1 = bcOptimize(f2[:, 0 : switchIdx + 1], tshiftF2[0 : switchIdx + 1])
-    #bF2B2 = bcOptimize(f2[:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
+    bF1B1 = bcOptimize(f1[:, 0 : switchIdx + 1], tshiftF1[0 : switchIdx + 1])
+    bF1B2 = bcOptimize(f1[:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
+    bF2B1 = bcOptimize(f2[:, 0 : switchIdx + 1], tshiftF2[0 : switchIdx + 1])
+    bF2B2 = bcOptimize(f2[:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
 
     # Write coeffs to file
     if cacheIono:
