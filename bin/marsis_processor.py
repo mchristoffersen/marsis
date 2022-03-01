@@ -17,7 +17,7 @@ def process(track, args):
     with open(args.out + "/" + edr.lbld["PRODUCT_ID"].lower() + "_nav.csv", "w") as fd:
         fd.write(",".join(nav.dtype.names) + "\n")
         np.savetxt(fd, nav, "%.6f", ",")
-    f1, f2 = marsis.campbell(edr, cacheIono=True, cache=args.cache)
+    f1, f2 = marsis.campbell(edr, args.dem, cacheIono=True, cache=args.cache)
 
     # Write out radargram and nav products
     f1Path = args.out + "/" + track.lower() + "_f1.img"
@@ -29,12 +29,16 @@ def process(track, args):
     marsis.gen_tiff(f1, f1Path.replace(".img", ".tif"))
     marsis.gen_tiff(f2, f2Path.replace(".img", ".tif"))
 
+    marsis.gen_segy(f1, edr, f1Path.replace(".img", ".sgy"))
+    marsis.gen_segy(f2, edr, f2Path.replace(".img", ".sgy"))
+
     return 0
 
 
 # CLI
 parser = argparse.ArgumentParser(description="Process MARSIS EDRs")
 parser.add_argument("tracks", type=str, help="File containing track IDs to process")
+parser.add_argument("dem", type=str, help="Global digital elevation model of Mars")
 parser.add_argument(
     "-o", "--out", type=str, help="Output directory (Default = ./)", default="./"
 )

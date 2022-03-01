@@ -8,18 +8,10 @@ import scipy.signal.windows
 
 from .util import genChirp
 
-# def fit(b, ncoeff):
-#    indx = np.arange(len(b))+1
-#    A = indx**0
-#    A = A[np.newaxis, :]
-#    for i in range(ncoeff-1):
-#        A = np.vstack((A, indx**(i+1)))
-#    print(A.T)
-#    res = scipy.linalg.lstsq(A.T, b)
-#    return res[0]
-
 
 def lsindx(length):
+    # Trace index for least squares
+    # Divided by 100 to prevent numerical problems
     return np.arange(length) / 100 + 1
 
 
@@ -158,7 +150,7 @@ def pc(b, DATA, ttrig):
     return np.fft.ifft(DATA, axis=0)
 
 
-def campbell(edr, cacheIono=False, cache="./", contrast=False):
+def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
     """Campbell style ionospheric correction.
 
     Fit a smooth function to quadratic phase distortion caused
@@ -314,18 +306,16 @@ def campbell(edr, cacheIono=False, cache="./", contrast=False):
     srfF2 = np.argmax(10*np.log(rgF2) > -10, axis=0)
 
     x = np.arange(len(srfF1))
-    srfF1 = np.interp(x, x[srfF1 != 0], srfF1[srfF1 != 0])
-    srfF2 = np.interp(x, x[srfF2 != 0], srfF2[srfF2 != 0])
+    if(len(x[srfF1 != 0]) != 0):
+        # Just skipping bad tracks for now
+        srfF1 = np.interp(x, x[srfF1 != 0], srfF1[srfF1 != 0])
+        srfF2 = np.interp(x, x[srfF2 != 0], srfF2[srfF2 != 0])
 
 
     # MOLA Surface
     xyzcrs = "+proj=geocent +a=3396190 +b=3376200 +no_defs"
     xyz = edr.geo["TARGET_SC_POSITION_VECTOR"] * 1e3
-    # dem = rio.open("https://mchristo.net/data/MOLA_SHARAD_128ppd_radius_tiled.tif", "r")
-    # dem = rio.open("/zippy/MARS/code/modl/simc/dem/MOLA_SHARAD_128ppd_radius.tif", "r")
-    dem = rio.open(
-        "/home/mchristo/proj/simc/dem/MOLA_SHARAD_128ppd_radius_tiled.tif", "r"
-    )
+    dem = rio.open(dem, 'r')
 
     demX, demY, demZ = pyproj.transform(
         xyzcrs, dem.crs, xyz[:, 0], xyz[:, 1], xyz[:, 2]
