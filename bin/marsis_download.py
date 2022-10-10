@@ -5,6 +5,8 @@ import sys
 import os
 import re
 
+sys.path.append("/home/mchristo/proj/orbitRadar/marsis_processor/src")
+
 import marsis
 
 # To print failure messages and exit
@@ -14,9 +16,15 @@ def fail(msg):
 
 
 def cli():
-    parser = argparse.ArgumentParser(description="Download MARSIS EDRs")
+    parser = argparse.ArgumentParser(
+        description="Download MARSIS EDRs. Takes list of tracks from a file or stdin"
+    )
     parser.add_argument(
-        "tracks", type=str, help="List of MARSIS EDRs to download (label file)"
+        "-t",
+        "--tracks",
+        type=str,
+        help="List of MARSIS EDRs to download (label file)",
+        default=None,
     )
     parser.add_argument(
         "-o",
@@ -32,20 +40,22 @@ def cli():
 def main():
     args = cli()
 
+    if args.tracks is None:
+        tracks = sys.stdin.readlines()
+    else:
+        if not os.path.isfile(args.tracks):
+            fail('EDR track list "%s" cannot be found' % args.tracks)
+        with open(args.tracks, "r") as fd:
+            tracks = fd.readlines()
+
     # Check paths
     if not os.path.isdir(args.output):
         fail('Output directory "%s" cannot be found' % args.out)
 
-    if not os.path.isfile(args.tracks):
-        fail('EDR track list "%s" cannot be found' % args.track)
-
-    with open(args.tracks, "r") as fd:
-        tracks = fd.readlines()
-
     tracks = [track.strip() for track in tracks]
 
     # Check track file formatting
-    marsis_pattern = re.compile("e_[0-9]{4,5}_ss3_trk_cmp_m")
+    marsis_pattern = re.compile("e_[0-9]{5}_ss3_trk_cmp_m")
     for track in tracks:
         if marsis_pattern.match(track) is None:
             fail('Invalid track "%s"' % track)
