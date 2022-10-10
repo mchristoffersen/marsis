@@ -17,8 +17,15 @@ This software implements several processing routines that, when performed in seq
 
 The processor can be used as a command line tool or within a Python script to generate MARSIS radargrams and/or output metdata from the EDR files in a text format. There are several Jupyter Notebooks in the "notebooks" directory that walk through usage within Python and as a command line tool 
 
-The Campbell method requires a global DEM of Mars, I recommend using this one:
+The Campbell method requires a global DEM of Mars, I recommend using this one:  
 https://mchristo.net/data/megr_32ppd.tif   (253 MB)
+
+Currently there are two command line tools included in the package:  
+marsis_download.py - Script to download a list of MARSIS EDRs
+marsis_processor.py - Script to process a single MARSIS EDR
+
+Usage instructions can be printed to the terminal with `marsis_download.py --help` and `marsis_processor.py --help`
+
 ## Useful links
 MARSIS Planetary Data System (PDS) Page - https://pds-geosciences.wustl.edu/missions/mars_express/marsis.htm
 
