@@ -34,7 +34,7 @@ def arangeT(tstart, tstop, fs):
     return seq
 
 
-def genChirp(f0=-0.5e6, f1=0.5e6, m=4.0e9, fs=1.4e6):
+def refChirp(f0=-0.5e6, f1=0.5e6, m=4.0e9, fs=1.4e6):
     """Generate a chirp with given parameters.
 
     Generate a linear frequency sweep (chirp) with the given frequency
@@ -62,6 +62,8 @@ def genChirp(f0=-0.5e6, f1=0.5e6, m=4.0e9, fs=1.4e6):
     The time length of the chirp is calculated from the input parameters,
     t = (f1-f0)/m. This function generates a signal with unit amplitude.
     """
+    # TODO: Add windowing
+
     tlen = (f1 - f0) / m
     t = arangeT(0, tlen, fs)  # time vector
 

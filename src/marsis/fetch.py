@@ -33,11 +33,11 @@ def fetch(tracks, path, clobber=True):
     """
 
     # Only allow ss3_trk_cmp for now, raise error if anything different
-    r = re.compile("e_[0-9]{5}_ss3_trk_cmp_m")
+    r = re.compile("e_[0-9]{4,5}_ss3_trk_cmp_m")
     for track in tracks:
         if r.match(track.lower()) is None:
             print(track)
-            raise ValueError("Processor only supports EDR SS3_TRK_CMP type")
+            raise ValueError("Processor only supports E_SS3_TRK_CMP type")
 
     # Get index files from pds
     print("Downloading PDS index files...")

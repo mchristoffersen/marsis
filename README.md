@@ -9,14 +9,16 @@ This software implements several processing routines that, when performed in seq
 4. Several modes of ionosphere compensation
     - No ionosphere compensation
     - Ionosphere compensation via:
-        - "Smithsonian method" (https://doi.org/10.1002/2015JE004917)
-        - "JPL method" (https://doi.org/10.1109/RADAR.2017.7944326)
-        - "Italian method" (https://doi.org/10.1109/RADAR.2008.4720760)
-    - Dual band range compression with ionosphere compensation that is a hybrid of the Smithsonian and Italian methods
+        - "Campbell method" (https://doi.org/10.1002/2015JE004917)
+        - "McMichael method" (https://doi.org/10.1109/RADAR.2017.7944326)
+<>        - "Italian method" (https://doi.org/10.1109/RADAR.2008.4720760)
+<>    - Dual band range compression with ionosphere compensation that is a hybrid of the Smithsonian and Italian methods
 5. Range compression
 
 The processor can be used as a command line tool or within a Python script to generate MARSIS radargrams and/or output metdata from the EDR files in a text format. There are several Jupyter Notebooks in the "notebooks" directory that walk through usage within Python and as a command line tool 
 
+The Campbell method requires a global DEM of Mars, I recommend using this one:
+https://mchristo.net/data/megr_32ppd.tif   (253 MB)
 ## Useful links
 MARSIS Planetary Data System (PDS) Page - https://pds-geosciences.wustl.edu/missions/mars_express/marsis.htm
 

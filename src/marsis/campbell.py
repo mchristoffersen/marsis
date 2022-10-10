@@ -6,7 +6,7 @@ import pyproj
 import rasterio as rio
 import scipy.signal.windows
 
-from .util import genChirp
+from .util import refChirp
 
 
 def lsindx(length):
@@ -103,6 +103,8 @@ def pc(b, DATA, ttrig):
     # This is not default val to enable plugging this method
     # into minimizers
 
+    # print(DATA.shape, ttrig.shape)
+
     DATA = np.copy(DATA)
 
     if len(DATA.shape) == 1:
@@ -131,7 +133,7 @@ def pc(b, DATA, ttrig):
 
     # Pulse compress frame by frame
     for j in range(ntrace):
-        chirp = genChirp(m=m[j])
+        chirp = refChirp(m=m[j])
 
         # window
         chirp = chirp * scipy.signal.windows.hann(len(chirp))
@@ -160,7 +162,7 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
     Parameters
     ----------
     edr: EDR
-        EDR object containing the EDR data 
+        EDR object containing the EDR data
     path: str
         Path to directory where the MARSIS data files will be downloaded to
     clobber: bool
@@ -187,97 +189,117 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
         (edr.anc["RX_TRIG_SA_PROGR"][:, 1]) * (1 / 2.8e6)
         - edr.geo["SPACECRAFT_ALTITUDE"] * 2e3 / c
         + 256 * dt
-        - 450e-6 # Delay from xmit F1 to xmit F2
+        - 450e-6  # Delay from xmit F1 to xmit F2
     )
 
     # Find when freq switch is (if any)
-    dcg = edr.ost["DCG_CONFIGURATION_LO"].to_numpy()
-    try:
-        switchIdx = np.where(dcg[:-1] != dcg[1:])[0][0]
-    except IndexError:
-        switchIdx = len(dcg) - 4
-        print("No freq switch - using last 3 frames as temp fix")
+    dcgF1 = edr.ost["DCG_CONFIGURATION_F1"].to_numpy()
+    dcgF2 = edr.ost["DCG_CONFIGURATION_F2"].to_numpy()
+
+    switchF1 = np.where(dcgF1[:-1] != dcgF1[1:])[0] + 1
+    switchF2 = np.where(dcgF1[:-1] != dcgF1[1:])[0] + 1
+
+    switchF1 = np.append(0, switchF1)
+    switchF2 = np.append(0, switchF2)
+
+    switchF1 = np.append(switchF1, len(dcgF1))
+    switchF2 = np.append(switchF2, len(dcgF2))
 
     f1 = edr.data["ZERO_F1"]
     f2 = edr.data["ZERO_F2"]
 
-    cacheFile = "%s/%s_coeffs.txt" % (cache, edr.lbld["PRODUCT_ID"].lower())
-    cmt = """
-    if cacheIono:
-        if(os.path.isfile(cacheFile)):
-            fd = open(cacheFile, "r")
-            coeffs = fd.read().split("\n")
-            fd.close()
-            coeffDict = {}
-            for line in coeffs:
-                line = line.split("=")
-                coeffDict[line.]"""
+    # TODO: Add cache and reading from cache for ionosphere coefficents
 
-    # Independently derive ionosphere correction for lo and hi bands on either
-    # side of freq switch
-    bF1B1 = bcOptimize(f1[:, 0 : switchIdx + 1], tshiftF1[0 : switchIdx + 1])
-    bF1B2 = bcOptimize(f1[:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
-    bF2B1 = bcOptimize(f2[:, 0 : switchIdx + 1], tshiftF2[0 : switchIdx + 1])
-    bF2B2 = bcOptimize(f2[:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
+    # cacheFile = "%s/%s_coeffs.txt" % (cache, edr.lbld["PRODUCT_ID"].lower())
+
+    # if cacheIono:
+    #    if(os.path.isfile(cacheFile)):
+    #        fd = open(cacheFile, "r")
+    #        coeffs = fd.read().split("\n")
+    #        fd.close()
+    #        coeffDict = {}
+    #        for line in coeffs:
+    #            line = line.split("=")
+    #            coeffDict[line.]"""
+
+    # Ionosphere corrections for each continuious chunk of band in each frequency
+    # could probably do some f1-f2 stitching but that would take more thinking
+    bF1 = []
+    for i in range(len(switchF1) - 1):
+        bF1.append(
+            bcOptimize(
+                f1[:, switchF1[i] : switchF1[i + 1]],
+                tshiftF1[switchF1[i] : switchF1[i + 1]],
+            )
+        )
+
+    bF2 = []
+    for i in range(len(switchF2) - 1):
+        bF2.append(
+            bcOptimize(
+                f2[:, switchF2[i] : switchF2[i + 1]],
+                tshiftF2[switchF2[i] : switchF2[i + 1]],
+            )
+        )
 
     # Write coeffs to file
-    if cacheIono:
-        fd = open(cacheFile, "w")
-        elems = "%e, " * len(bF1B1)
-        bF1B1Line = "bF1B1 = [" + elems[:-2] + "]\n"
-        elems = "%e, " * len(bF1B2)
-        bF1B2Line = "bF1B2 = [" + elems[:-2] + "]\n"
-        elems = "%e, " * len(bF2B1)
-        bF2B1Line = "bF2B1 = [" + elems[:-2] + "]\n"
-        elems = "%e, " * len(bF2B2)
-        bF2B2Line = "bF2B2 = [" + elems[:-2] + "]\n"
+    # if cacheIono:
+    #    fd = open(cacheFile, "w")
+    #    elems = "%e, " * len(bF1B1)
+    #    bF1B1Line = "bF1B1 = [" + elems[:-2] + "]\n"
+    #    elems = "%e, " * len(bF1B2)
+    #    bF1B2Line = "bF1B2 = [" + elems[:-2] + "]\n"
+    #    elems = "%e, " * len(bF2B1)
+    #    bF2B1Line = "bF2B1 = [" + elems[:-2] + "]\n"
+    #    elems = "%e, " * len(bF2B2)
+    #    bF2B2Line = "bF2B2 = [" + elems[:-2] + "]\n"
 
-        fd.write(bF1B1Line % tuple(bF1B1))
-        fd.write(bF1B2Line % tuple(bF1B2))
-        fd.write(bF2B1Line % tuple(bF2B1))
-        fd.write(bF2B2Line % tuple(bF2B2))
-        fd.close()
+    #    fd.write(bF1B1Line % tuple(bF1B1))
+    #    fd.write(bF1B2Line % tuple(bF1B2))
+    #    fd.write(bF2B1Line % tuple(bF2B1))
+    #    fd.write(bF2B2Line % tuple(bF2B2))
+    #    fd.close()
 
     # Make multilook images for f1 and f2
     rgF1 = np.zeros_like(f1, dtype=np.float32)
-    rgF1[:, : switchIdx + 1] += np.abs(
-        pc(bF1B1, edr.data["MINUS1_F1"][:, : switchIdx + 1], tshiftF1[: switchIdx + 1])
-    )
-    rgF1[:, : switchIdx + 1] += np.abs(
-        pc(bF1B1, edr.data["ZERO_F1"][:, : switchIdx + 1], tshiftF1[: switchIdx + 1])
-    )
-    rgF1[:, : switchIdx + 1] += np.abs(
-        pc(bF1B1, edr.data["PLUS1_F1"][:, : switchIdx + 1], tshiftF1[: switchIdx + 1])
-    )
-    rgF1[:, switchIdx + 1 :] += np.abs(
-        pc(bF1B2, edr.data["MINUS1_F1"][:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
-    )
-    rgF1[:, switchIdx + 1 :] += np.abs(
-        pc(bF1B2, edr.data["ZERO_F1"][:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
-    )
-    rgF1[:, switchIdx + 1 :] += np.abs(
-        pc(bF1B2, edr.data["PLUS1_F1"][:, switchIdx + 1 :], tshiftF1[switchIdx + 1 :])
-    )
+    rateF1 = np.zeros(f1.shape[1], dtype=np.float32)
+    for i in range(len(switchF1) - 1):
+        for j in ["MINUS1_F1", "ZERO_F1", "PLUS1_F1"]:
+            rgF1[:, switchF1[i] : switchF1[i + 1]] += np.abs(
+                pc(
+                    bF1[i],
+                    edr.data[j][:, switchF1[i] : switchF1[i + 1]],
+                    tshiftF1[switchF1[i] : switchF1[i + 1]],
+                )
+            )
+            ntrace = switchF1[i + 1] - switchF1[i]
+            indx = lsindx(ntrace)
+
+            m = np.zeros(len(indx), dtype=np.float128)
+            for k in range(len(bF1[i])):
+                m += bF1[i][k] * (indx ** k)
+
+            rateF1[switchF1[i] : switchF1[i + 1]] = m
 
     rgF2 = np.zeros_like(f2, dtype=np.float32)
-    rgF2[:, : switchIdx + 1] += np.abs(
-        pc(bF2B1, edr.data["MINUS1_F2"][:, : switchIdx + 1], tshiftF2[: switchIdx + 1])
-    )
-    rgF2[:, : switchIdx + 1] += np.abs(
-        pc(bF2B1, edr.data["ZERO_F2"][:, : switchIdx + 1], tshiftF2[: switchIdx + 1])
-    )
-    rgF2[:, : switchIdx + 1] += np.abs(
-        pc(bF2B1, edr.data["PLUS1_F2"][:, : switchIdx + 1], tshiftF2[: switchIdx + 1])
-    )
-    rgF2[:, switchIdx + 1 :] += np.abs(
-        pc(bF2B2, edr.data["MINUS1_F2"][:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
-    )
-    rgF2[:, switchIdx + 1 :] += np.abs(
-        pc(bF2B2, edr.data["ZERO_F2"][:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
-    )
-    rgF2[:, switchIdx + 1 :] += np.abs(
-        pc(bF2B2, edr.data["PLUS1_F2"][:, switchIdx + 1 :], tshiftF2[switchIdx + 1 :])
-    )
+    rateF2 = np.zeros(f1.shape[1], dtype=np.float32)
+    for i in range(len(switchF2) - 1):
+        for j in ["MINUS1_F2", "ZERO_F2", "PLUS1_F2"]:
+            rgF2[:, switchF2[i] : switchF2[i + 1]] += np.abs(
+                pc(
+                    bF2[i],
+                    edr.data[j][:, switchF2[i] : switchF2[i + 1]],
+                    tshiftF2[switchF2[i] : switchF2[i + 1]],
+                )
+            )
+            ntrace = switchF2[i + 1] - switchF2[i]
+            indx = lsindx(ntrace)
+
+            m = np.zeros(len(indx), dtype=np.float128)
+            for k in range(len(bF2[i])):
+                m += bF2[i][k] * (indx ** k)
+
+            rateF2[switchF2[i] : switchF2[i + 1]] = m
 
     # Normalize to background
     kernel = np.ones(32)
@@ -299,29 +321,54 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
     # srfF1 = np.argmax(rgF1 > thld, axis=0)
     # srfF2 = np.argmax(rgF2 > thld, axis=0)
 
-    #srfF1 = np.argmax(rgF1, axis=0)
-    #srfF2 = np.argmax(rgF2, axis=0)
-    
-    srfF1 = np.argmax(10*np.log(rgF1) > -15, axis=0)
-    srfF2 = np.argmax(10*np.log(rgF2) > -10, axis=0)
+    # srfF1 = np.argmax(rgF1, axis=0)
+    # srfF2 = np.argmax(rgF2, axis=0)
+
+    srfF1 = np.argmax(10 * np.log(rgF1) > -15, axis=0)
+    srfF2 = np.argmax(10 * np.log(rgF2) > -10, axis=0)
+
+    plt.plot(srfF1)
+    plt.plot(srfF2)
+    plt.show()
+
+    # If no surface found just set surface to halfway, it will be a junk
+    # track anyway
+    if np.all(srfF1 == 0):
+        srfF1[:] = 256
+
+    if np.all(srfF2 == 0):
+        srfF2[:] = 256
 
     x = np.arange(len(srfF1))
-    if(len(x[srfF1 != 0]) != 0):
+    if len(x[srfF1 != 0]) != 0:
         # Just skipping bad tracks for now
         srfF1 = np.interp(x, x[srfF1 != 0], srfF1[srfF1 != 0])
         srfF2 = np.interp(x, x[srfF2 != 0], srfF2[srfF2 != 0])
 
-
     # MOLA Surface
-    xyzcrs = "+proj=geocent +a=3396190 +b=3376200 +no_defs"
+    # xyzcrs = "+proj=geocent +R=3396000 +lat_0=0 +lon_0=180 +type=crs"
+    # xyzcrs = "+proj=geocent +a=3396000 +no_defs"
+    # xyzcrs = "+proj=geocent +a=3396190 +b=3376200 +no_defs"
+    # xyzcrs = "+proj=geocent +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396000 +units=m +no_defs"
+    # xyzcrs = "+proj=geocent +a=3396190 +b=3376200 +no_defs"
+    # xyzcrs = "+proj=geocent +R=3396000 +no_defs"
+    llacrs = 'GEOGCS["unknown",DATUM["unknown",SPHEROID["unknown",3396000,0]],PRIMEM["Reference meridian",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST]]'
+
     xyz = edr.geo["TARGET_SC_POSITION_VECTOR"] * 1e3
-    dem = rio.open(dem, 'r')
 
-    demX, demY, demZ = pyproj.transform(
-        xyzcrs, dem.crs, xyz[:, 0], xyz[:, 1], xyz[:, 2]
-    )
+    lat = edr.geo["SUB_SC_LATITUDE"]
+    lon = (edr.geo["SUB_SC_LONGITUDE"] + 180) % 360 - 180
+    # alt = edr.geo["SPACECRAFT_ALTITUDE"]
+    # lla = np.dstack((lon, lat, alt))
+    dem = rio.open(dem, "r")
 
-    iy, ix = dem.index(demX, demY)
+    # print(dem.crs, xyzcrs)
+
+    # demX, demY, demZ = pyproj.transform(
+    #    llacrs, dem.crs, lla[:, 0], lla[:, 1], lla[:, 2]
+    # )
+
+    iy, ix = dem.index(lon, lat)
     ix = np.array(ix)
     iy = np.array(iy)
 
@@ -329,7 +376,7 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
     ix[ix > dem.width - 1] = dem.width - 1
     ix[ix < 0] = 0
 
-    mola = dem.read(1)[iy, ix] + 3396190
+    mola = dem.read(1)[iy, ix] + 3396000
 
     dem.close()
 
@@ -342,14 +389,21 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
         (a ** 2) * (np.sin(angle) ** 2) + (b ** 2) * (np.cos(angle) ** 2)
     )
 
+    plt.plot(marsR - mola)
+    plt.show()
+
     c = 299792458
     molasample = 256 + (((marsR - mola) * 2 / c) * 1.4e6).astype(np.int32)
 
+    plt.plot(srfF1)
+    plt.plot(molasample)
+    plt.show()
+
     dsF1 = (molasample - srfF1).astype(np.int32)
     dsF2 = (molasample - srfF2).astype(np.int32)
-    
+
     for i in range(rgF1.shape[1]):
         rgF1[:, i] = np.roll(rgF1[:, i], dsF1[i])
         rgF2[:, i] = np.roll(rgF2[:, i], dsF2[i])
-        
-    return rgF1, rgF2
+
+    return rgF1, rgF2, rateF1, rateF2

@@ -40,7 +40,7 @@ def gen_segy(rg, edr, name):
     # https://seg.org/Portals/0/SEG/News%20and%20Resources/Technical%20Standards/seg_y_rev2_0-mar2017.pdf
     with open(name, "wb") as f:
         ### Write 3200 byte text header
-        f.write(build_txthead(name.split('/')[-1].split('.')[0]))
+        f.write(build_txthead(name.split("/")[-1].split(".")[0]))
 
         ### Write 400 byte binary header
         f.write(build_binhead(spt, ntrace))

@@ -53,7 +53,7 @@ class EDR:
 
         Returns
         -------
-        
+
         Notes
         -----
         """
@@ -83,7 +83,7 @@ class EDR:
 
         Returns
         -------
-        
+
         Notes
         -----
         """
@@ -119,18 +119,18 @@ class EDR:
 
     def decompress(self, trace, exp):
         sign = (-1) ** (trace >> 7)  # Sign bit
-        mantissa = 1+((trace & 0x7F)/(2.0**7))
-        #mantissa = trace & 0x7F
+        mantissa = 1 + ((trace & 0x7F) / (2.0 ** 7))
+        # mantissa = trace & 0x7F
         trace = sign * mantissa * (2 ** (exp - 127))
         return trace
-    
+
     def deagc(self, data, agc):
         # Take in an array of marsis data
         # and a vector of AGC settings,
         # then correct for agc
-        agc = agc & 0x07 # Only last three bits matter
-        agc = agc*4 + 2 # Gain in dB, per Orosei
-        data = data * 10**(agc/20)[np.newaxis, :]
+        agc = agc & 0x07  # Only last three bits matter
+        agc = agc * 4 + 2  # Gain in dB, per Orosei
+        data = data * 10 ** (agc / 20)[np.newaxis, :]
         return data
 
     def parseSci(self, file, lbld):
@@ -236,10 +236,10 @@ class EDR:
         df["MODE_SELECTION"] = np.vectorize(
             lambda s: np.frombuffer(s[4:5], dtype=">u1") >> 2 & 0x0F
         )(ost)
-        df["DCG_CONFIGURATION_LO"] = np.vectorize(
+        df["DCG_CONFIGURATION_F1"] = np.vectorize(
             lambda s: np.frombuffer(s[4:5], dtype=">u1") & 0x03
         )(ost)
-        df["DCG_CONFIGURATION_HI"] = np.vectorize(
+        df["DCG_CONFIGURATION_F2"] = np.vectorize(
             lambda s: np.frombuffer(s[5:6], dtype=">u1") >> 6
         )(ost)
 
@@ -281,10 +281,10 @@ class EDR:
 
                 block[:, i] = trace
 
-            if("F1" in rg):
-                block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:,0])
-            elif("F2" in rg):
-                block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:,1])
+            if "F1" in rg:
+                block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:, 0])
+            elif "F2" in rg:
+                block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:, 1])
 
             datad[rg] = block
 
@@ -366,9 +366,9 @@ class EDR:
         # ## parser def ## #
 
         def p_label(p):
-            """ label : record
-                      | label record
-                      | label END"""
+            """label : record
+            | label record
+            | label END"""
             if len(p) == 2:
                 # record
                 p[0] = [p[1]]
@@ -381,38 +381,38 @@ class EDR:
 
         def p_record(p):
             """record : WORD '=' value
-                      | POINTER '=' INT
-                      | POINTER '=' STRING
-                      | POINTER '=' '(' STRING ',' INT ')'"""
+            | POINTER '=' INT
+            | POINTER '=' STRING
+            | POINTER '=' '(' STRING ',' INT ')'"""
             p[0] = (p[1], p[3])
 
         def p_value(p):
             """value : STRING
-                     | DATE
-                     | WORD
-                     | DSID
-                     | number
-                     | number UNIT
-                     | sequence"""
+            | DATE
+            | WORD
+            | DSID
+            | number
+            | number UNIT
+            | sequence"""
             # Just chuck the units for now
             p[0] = p[1]
 
         def p_number(p):
             """number : INT
-                      | REAL"""
+            | REAL"""
             p[0] = p[1]
 
         def p_sequence(p):
             """sequence : '(' value ')'
-                        | '(' sequence_values ')'
-                        | '{' value '}'
-                        | '{' sequence_values '}'"""
+            | '(' sequence_values ')'
+            | '{' value '}'
+            | '{' sequence_values '}'"""
             p[0] = p[2]
 
         def p_sequence_values(p):
             """sequence_values : value ','
-                               | sequence_values value ','
-                               | sequence_values value"""
+            | sequence_values value ','
+            | sequence_values value"""
             if p[2] == ",":
                 p[0] = [p[1]]
             else:
