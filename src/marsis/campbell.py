@@ -1,6 +1,5 @@
 import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
 import rasterio as rio
@@ -327,10 +326,6 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
     srfF1 = np.argmax(10 * np.log(rgF1) > -15, axis=0)
     srfF2 = np.argmax(10 * np.log(rgF2) > -10, axis=0)
 
-    plt.plot(srfF1)
-    plt.plot(srfF2)
-    plt.show()
-
     # If no surface found just set surface to halfway, it will be a junk
     # track anyway
     if np.all(srfF1 == 0):
@@ -389,15 +384,8 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
         (a ** 2) * (np.sin(angle) ** 2) + (b ** 2) * (np.cos(angle) ** 2)
     )
 
-    plt.plot(marsR - mola)
-    plt.show()
-
     c = 299792458
     molasample = 256 + (((marsR - mola) * 2 / c) * 1.4e6).astype(np.int32)
-
-    plt.plot(srfF1)
-    plt.plot(molasample)
-    plt.show()
 
     dsF1 = (molasample - srfF1).astype(np.int32)
     dsF2 = (molasample - srfF2).astype(np.int32)
