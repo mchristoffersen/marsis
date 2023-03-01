@@ -1,6 +1,37 @@
 [build-system]
 requires = [
     "setuptools>=42",
-    "wheel",
+    "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "marsis"
+version = "0.0.9"
+description = "Processor for the Mars Advanced Radar for Subsurface and Ionosphere Sounding (MARSIS)"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {file = "LICENSE.txt"}
+authors = [
+    {name = "Michael Christoffersen"},
+    {email = "mchristo28@gmail.com"}
+]
+dependencies = [
+    "pandas",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "rasterio",
+    "pyproj",
+    "ply",
+    "tqdm",
+    "Pillow"
+]
+
+[project.urls]
+documentation = "https://github.com/mchristoffersen/marsis/wiki"
+repository = "https://github.com/mchristoffersen/marsis"
+
+[project.scripts]
+marsis_process = "marsis.bin.marsis_processor:main"
+marsis_download = "marsis.bin.marsis_download:main"

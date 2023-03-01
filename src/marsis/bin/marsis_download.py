@@ -5,9 +5,9 @@ import sys
 import os
 import re
 
-sys.path.append("/home/mchristo/proj/orbitRadar/marsis_processor/src")
-
 import marsis
+
+# TODO: add stdin input
 
 # To print failure messages and exit
 def fail(msg):
@@ -17,14 +17,12 @@ def fail(msg):
 
 def cli():
     parser = argparse.ArgumentParser(
-        description="Download MARSIS EDRs. Takes list of tracks from a file or stdin"
+        description="Download MARSIS EDRs. Takes list of tracks from a file"
     )
     parser.add_argument(
-        "-t",
-        "--tracks",
+        "tracks",
         type=str,
-        help="List of MARSIS EDRs to download (label file)",
-        default=None,
+        help="List of MARSIS EDRs to download",
     )
     parser.add_argument(
         "-o",
@@ -40,13 +38,10 @@ def cli():
 def main():
     args = cli()
 
-    if args.tracks is None:
-        tracks = sys.stdin.readlines()
-    else:
-        if not os.path.isfile(args.tracks):
-            fail('EDR track list "%s" cannot be found' % args.tracks)
-        with open(args.tracks, "r") as fd:
-            tracks = fd.readlines()
+    if not os.path.isfile(args.tracks):
+        fail('EDR track list "%s" cannot be found' % args.tracks)
+    with open(args.tracks, "r") as fd:
+        tracks = fd.readlines()
 
     # Check paths
     if not os.path.isdir(args.output):
