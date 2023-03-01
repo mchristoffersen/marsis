@@ -156,11 +156,11 @@ def pc_clutter(DATA, sim, ttrig, dcg_config, psis=None):
             psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 50, 10)
             dly = totalDelay(psi, band)[0]
 
-            #psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 5, 20)
-            #dly = totalDelay(psi, band)[0]
+            psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 5, 20)
+            dly = totalDelay(psi, band)[0]
 
-            #psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 1, 40)
-            #dly = totalDelay(psi, band)[0]
+            psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 1, 40)
+            dly = totalDelay(psi, band)[0]
 
             psis[i] = tuple(psi)
 
