@@ -3,11 +3,11 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import scipy.optimize
 
-from marsis.util import arangeT, trigDelay, refChirp, pulseCompressTrig, baseBand
+from marsis.util import arangeT, trigDelay, refChirp, pulseCompressTrig, quadMixShift
 from marsis import log
 
 
-def psiGridSearch(TRACE, sim, tshift, band, dly, dlyBound, steps, plot=False):
+def psiGridSearch(trace, sim, tshift, band, dly, dlyBound, steps, plot=False):
     # Find min/max psi bounds based on delay
     dlyMax = dly + dlyBound
     dlyMin = max(0, dly - dlyBound)
@@ -36,7 +36,7 @@ def psiGridSearch(TRACE, sim, tshift, band, dly, dlyBound, steps, plot=False):
                     res[i, j, k] = 0
                 else:
                     res[i, j, k] = obj_func(
-                        [psi1[i], psi2[j], psi3[[k]]], TRACE, tshift, band, sim
+                        [psi1[i], psi2[j], psi3[[k]]], trace, tshift, band, sim
                     )
 
     foc = np.where(res == res.min())
@@ -67,12 +67,12 @@ def totalDelay(psis, band):
     return coeff[0] * psis[0] + coeff[1] * psis[1] + coeff[2] * psis[2]
 
 
-def obj_func(psis, TRACE, ttrig, band, sim):
+def obj_func(psis, trace, ttrig, band, sim):
     # Make sure dims match
     if len(sim.shape) == 1:
         sim = sim[:, np.newaxis]
 
-    pc = pc_phase(psis, TRACE, np.array([ttrig]), band)
+    pc = pc_phase(psis, trace, np.array([ttrig]), band)
 
     # print(pc.shape, sim.shape)
 
@@ -101,7 +101,7 @@ def obj_func(psis, TRACE, ttrig, band, sim):
     return cost #*1e32
 
 
-def pc_phase(psis, TRACE, dly, band, fs=1.4e6):
+def pc_phase(psis, trace, dly, band, fs=1.4e6):
     # psis - ionospheric distortion coeffs
     # TRACE - freq domain trace to pulse compress
     # ttrig - trigger time correction
@@ -113,17 +113,17 @@ def pc_phase(psis, TRACE, dly, band, fs=1.4e6):
     #psi3 *= 1e10
 
     # Reference chirp
-    CHIRP = np.fft.fft(refChirp())
+    chirp = refChirp()
 
     # Shift data to baseband
-    TRACE = baseBand(TRACE)
+    trace = quadMixShift(trace)
 
     # Pulse compress
-    w = np.fft.fftfreq(len(TRACE), d=1.0 / fs) * 2 * np.pi  # Angular frequency
-    f = (np.fft.fftfreq(len(TRACE), d=1.0 / fs) + band) / 1e6  # Frequency in MHz
+    w = np.fft.fftfreq(len(trace), d=1.0 / fs) * 2 * np.pi  # Angular frequency
+    f = (np.fft.fftfreq(len(trace), d=1.0 / fs) + band) / 1e6  # Frequency in MHz
 
     c = 299792458  # speed of light m/s
-    PHASE = np.exp(
+    phase = np.exp(
         ((-1j * 2 * np.pi) / c)
         * (
             (((8.98 ** 2) * psi1) / f)
@@ -132,26 +132,26 @@ def pc_phase(psis, TRACE, dly, band, fs=1.4e6):
         )
     )
 
-    PC = pulseCompressTrig(TRACE, CHIRP, dly) * PHASE[:, np.newaxis]
+    PC = np.fft.fft(pulseCompressTrig(trace, chirp, dly), axis=0) * phase[:, np.newaxis]
 
     return np.fft.ifft(PC, axis=0)
 
 
-def pc_clutter(DATA, sim, ttrig, dcg_config, psis=None):
+def pc_clutter(data, sim, ttrig, dcg_config, psis=None):
     findPsis = False
     if psis is None:
         findPsis = True
         psi_t = np.dtype(
             [("psi1", np.float32), ("psi2", np.float32), ("psi3", np.float32)]
         )
-        psis = np.empty(DATA.shape[1], dtype=psi_t)
+        psis = np.empty(data.shape[1], dtype=psi_t)
 
     bands = [1.8e6, 3e6, 4e6, 5e6]
-    pc = np.zeros(DATA.shape, dtype=np.float32)
-    for i in tqdm(range(DATA.shape[1])):
+    pc = np.zeros(data.shape, dtype=np.float32)
+    for i in tqdm(range(data.shape[1])):
         band = bands[dcg_config[i]]
 
-        TRACE = DATA[:, i]
+        trace = data[:, i]
         simt = sim[:, i]
         ttrigt = ttrig[i]
 
@@ -162,16 +162,16 @@ def pc_clutter(DATA, sim, ttrig, dcg_config, psis=None):
                 x0 = list(psis[i-1])
             
             # Grid search ionosphere
-            psi = psiGridSearch(TRACE, simt, ttrigt, band, 0, 256, 5)
+            psi = psiGridSearch(trace, simt, ttrigt, band, 0, 256, 5)
             dly = totalDelay(psi, band)[0]
 
-            psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 50, 10)
+            psi = psiGridSearch(trace, simt, ttrigt, band, dly, 50, 10)
             dly = totalDelay(psi, band)[0]
 
-            psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 5, 20)
+            psi = psiGridSearch(trace, simt, ttrigt, band, dly, 5, 20)
             dly = totalDelay(psi, band)[0]
                         
-            psi = psiGridSearch(TRACE, simt, ttrigt, band, dly, 1, 40)
+            psi = psiGridSearch(trace, simt, ttrigt, band, dly, 1, 30)
 
             #print()
             #print("Nit:", res.nit)
@@ -187,8 +187,11 @@ def pc_clutter(DATA, sim, ttrig, dcg_config, psis=None):
 
             psis[i] = tuple(psi)
 
-        pc[:, i] = np.abs(pc_phase(psis[i], TRACE, np.array([ttrigt]), band))[:, 0]
+        pc[:, i] = np.abs(pc_phase(psis[i], trace, np.array([ttrigt]), band))[:, 0]
 
+        #plt.plot(pc[:,i])
+        #plt.show()
+        
     if findPsis:
         return pc, psis
     else:
@@ -197,7 +200,7 @@ def pc_clutter(DATA, sim, ttrig, dcg_config, psis=None):
 
 def mcmichael(edr, sim):
     # Load clutter sim
-    sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
+    #sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
 
     dlyF1, dlyF2 = trigDelay(edr)
 

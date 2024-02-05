@@ -74,56 +74,54 @@ def refChirp(f0=-0.5e6, f1=0.5e6, m=4.0e9, fs=1.4e6):
     return chirp
 
 
-def baseBand(DATA, bbShift=-0.7e6, fs=1.4e6):
-    """Frequency shift a signal.
+def quadMixShift(x, fShift=-0.7e6, fs=1.4e6):
+    """Frequency shift a signal through quadrature mixing.
 
     Parameters
     ----------
-    DATA: array_like of float
-        Frequency domain data
-    bbShift: float
-        Frequency shift to apply to data
+    x: array_like of complex float
+        Time domain signal
+    fShift: float
+        Frequency shift to apply to x
     fs: float
-        Sampling frequency of data
+        Sampling frequency of x
 
     Returns
     -------
-    SHIFT: array_like of float
-        Frequency domain shifted data
+    x_mix: array_like of complex float
+        Time domain frequency shifted x
 
     Notes
     -----
     The data array can be 1D (a single trace) or 2D (many traces). In the 2D
-    case it is assumed that the first axis is the fast-time axis and is in the
-    frequency domain.
-    The data
+    case each "column" (constnt axis 0) is treated independently.
     """
     # Handle single traces
-    if(len(DATA.shape) == 1):
-        DATA = DATA[:, np.newaxis]
-        
+    if(len(x.shape) == 1):
+        x = x[:, np.newaxis]
+
     # Generate time array
-    t = np.arange(DATA.shape[0]) * 1.0 / fs
-    
+    t = np.arange(x.shape[0]) / fs
+
     # Generate complex signal to mix with
-    bb = np.exp(2 * np.pi * 1j * bbShift * t)
-    
+    y = np.exp(2 * np.pi * 1j * fShift * t)[:, np.newaxis]
+
+    # Mix
+    x_sh = x*y
+
     # Do mixing
-    data = np.fft.ifft(DATA, axis=0)
-    SHIFT = np.fft.fft(data * bb[:, np.newaxis], axis=0)
-
-    return SHIFT
+    return x_sh
 
 
-def pulseCompressTrig(DATA, CHIRP, ttrig, fs=1.4e6):
+def pulseCompressTrig(data, chirp, ttrig, fs=1.4e6):
     """Pulse compress a signal and remove trigger delay.
 
     Parameters
     ----------
-    DATA: array_like of float
-        Baseband frequency domain data
-    CHIRP: array_like of float
-        Baseband frequency domain chirp
+    data: (n x m) array_like of float
+        Baseband time domain data, size n x m
+    chirp: array_like of float
+        Baseband time domain chirp, size n
     ttrig: array_like of float
         Trigger delay in seconds
     fs: float
@@ -131,21 +129,26 @@ def pulseCompressTrig(DATA, CHIRP, ttrig, fs=1.4e6):
 
     Returns
     -------
-    PC: array_like of float
-        Frequency domain pulse compressed data
+    pc: array_like of float
+        Time domain pulse compressed data, size n x m
 
     Notes
     -----
-    The data array can be 1D (a single trace) or 2D (many traces). In the 2D
-    case it is assumed that the first axis is the fast-time axis and is in the
-    frequency domain.
     """
-    # Handle single traces
-    if(len(DATA.shape) == 1):
-        DATA = DATA[:, np.newaxis]
-        
+    # Check dimensions
+    if(len(data.shape) != 2):
+        raise ValueError("data must be 2D")
+    if(len(chirp.shape) != 1):
+        raise ValueError("chirp must be 1D")
+    if(len(ttrig.shape) != 1):
+        raise ValueError("ttrig must be 1D")
+    if(ttrig.shape[0] != data.shape[1]):
+        raise ValueError("ttrig must have entry for each column of data")
+    if(chirp.shape[0] > data.shape[0]):
+        raise ValueError("chirp cannot be longer than number of rows in data")
+                
     # Zero pad chirp
-    chirp = np.append(np.fft.ifft(CHIRP), np.zeros(DATA.shape[0] - len(CHIRP)))
+    chirp = np.append(chirp, np.zeros(data.shape[0] - len(chirp)))
     CHIRP = np.fft.fft(chirp)
 
     # Angular frequency vector for trigger removal
@@ -153,9 +156,10 @@ def pulseCompressTrig(DATA, CHIRP, ttrig, fs=1.4e6):
     ttrig = ttrig[np.newaxis, :]
     
     # Pulse compress
-    PC = DATA * np.conj(CHIRP)[:, np.newaxis] * np.exp(-1j * w * ttrig)
-
-    return PC
+    PC = np.fft.fft(data, axis=0) * np.conj(np.fft.fft(chirp))[:, np.newaxis] * np.exp(-1j * w * ttrig)
+    pc = np.fft.ifft(PC, axis=0)
+    
+    return pc
 
 
 def trigDelay(edr, fs=1.4e6, c=299792458.0):

@@ -6,8 +6,11 @@
 coeffs.txt
 
 # pycache
-src/marsis/__pycache__
+__pycache__/
 
 # dist
 dist/
 src/marsis.egg-info
+
+# Jupyter stuff
+*.ipynb_checkpoints/

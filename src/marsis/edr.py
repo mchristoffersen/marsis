@@ -286,7 +286,7 @@ class EDR:
             elif "F2" in rg:
                 block = self.deagc(block, telTab["AGC_SA_LEVELS_CURRENT_FRAME"][:, 1])
 
-            datad[rg] = block
+            datad[rg] = np.fft.ifft(block, axis=0)
 
         return telTab, df, datad
 
