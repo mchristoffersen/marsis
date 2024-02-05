@@ -169,9 +169,9 @@ def pc_clutter(data, sim, ttrig, dcg_config, psis=None):
             dly = totalDelay(psi, band)[0]
 
             psi = psiGridSearch(trace, simt, ttrigt, band, dly, 5, 20)
-            dly = totalDelay(psi, band)[0]
+            #dly = totalDelay(psi, band)[0]
                         
-            psi = psiGridSearch(trace, simt, ttrigt, band, dly, 1, 30)
+            #psi = psiGridSearch(trace, simt, ttrigt, band, dly, 1, 30)
 
             #print()
             #print("Nit:", res.nit)
@@ -200,7 +200,7 @@ def pc_clutter(data, sim, ttrig, dcg_config, psis=None):
 
 def mcmichael(edr, sim):
     # Load clutter sim
-    #sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
+    sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
 
     dlyF1, dlyF2 = trigDelay(edr)
 
