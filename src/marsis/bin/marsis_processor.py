@@ -40,7 +40,12 @@ def process(args):
         names = "SUB_SC_LATITUDE,SUB_SC_LONGITUDE,SPACECRAFT_ALTITUDE,BAND_F1,BAND_F2,RATE_F1,RATE_F2"
         fmt = "%.6f,%.6f,%.3f,%.1f,%.1f,%.6e,%.6e"
     elif args.method == "mcmichael":
-        f1, f2, f1_psis_list, f2_psis_list = marsis.mcmichael(edr, args.sim)
+        try:
+            f1, f2, f1_psis_list, f2_psis_list = marsis.mcmichael(edr, args.sim)
+        except Exception as e:
+            print("Optimized processing failed: %s" % name)
+            print(e)
+            return
         if np.all(f1) == 0 and np.all(f2) == 0:
             print(name)
             exit()
@@ -53,7 +58,6 @@ def process(args):
             f1_psis[psi] = np.squeeze(np.array(f1_psis[psi]))
             f2_psis[psi] = np.squeeze(np.array(f2_psis[psi]))
 
-        print(lat.shape, lon.shape, alt.shape, f1_psis["psi1"].shape)
         info = np.dstack(
             (
                 lat,

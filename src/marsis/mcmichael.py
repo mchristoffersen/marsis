@@ -125,7 +125,7 @@ def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
     return np.array([op1, op2, op3])
 
 
-def mcmichael(edr, sim):
+def mcmichael(edr, sim, progress_bar=False):
     # Load clutter sim
     sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
 
@@ -176,7 +176,7 @@ def mcmichael(edr, sim):
         # Find phase distortion to correct each trace
         psis = [None] * rg.shape[1]
         dlyPrev = None
-        for i in tqdm.tqdm(range(rg.shape[1]), disable=False):
+        for i in tqdm.tqdm(range(rg.shape[1]), disable=not progress_bar):
             if band[i] != band[i - 1]:  # Reset prev delay if band chnage
                 dlyPrev = None
 
