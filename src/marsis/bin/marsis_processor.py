@@ -40,7 +40,17 @@ def process(args):
         names = "SUB_SC_LATITUDE,SUB_SC_LONGITUDE,SPACECRAFT_ALTITUDE,BAND_F1,BAND_F2,RATE_F1,RATE_F2"
         fmt = "%.6f,%.6f,%.3f,%.1f,%.1f,%.6e,%.6e"
     elif args.method == "mcmichael":
-        f1, f2, f1_psis, f2_psis = marsis.mcmichael(edr, args.sim)
+        f1, f2, f1_psis_list, f2_psis_list = marsis.mcmichael(edr, args.sim)
+        f1_psis = {}
+        f2_psis = {}
+        f1_psis["psi1"], f1_psis["psi2"], f1_psis["psi3"] = zip(*f1_psis_list)
+        f2_psis["psi1"], f2_psis["psi2"], f2_psis["psi3"] = zip(*f2_psis_list)
+
+        for psi in ["psi1", "psi2", "psi3"]:
+            f1_psis[psi] = np.squeeze(np.array(f1_psis[psi]))
+            f2_psis[psi] = np.squeeze(np.array(f2_psis[psi]))
+
+        print(lat.shape, lon.shape, alt.shape, f1_psis["psi1"].shape)
         info = np.dstack(
             (
                 lat,
