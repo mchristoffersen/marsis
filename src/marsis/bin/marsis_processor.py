@@ -41,6 +41,9 @@ def process(args):
         fmt = "%.6f,%.6f,%.3f,%.1f,%.1f,%.6e,%.6e"
     elif args.method == "mcmichael":
         f1, f2, f1_psis_list, f2_psis_list = marsis.mcmichael(edr, args.sim)
+        if(np.all(f1) == 0 and np.all(f2) == 0):
+            print(name)
+            exit()
         f1_psis = {}
         f2_psis = {}
         f1_psis["psi1"], f1_psis["psi2"], f1_psis["psi3"] = zip(*f1_psis_list)

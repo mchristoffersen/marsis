@@ -162,8 +162,11 @@ def mcmichael(edr, sim):
             delay = totalDelay(psi, band[i])[0]
 
             psi = find_distortion(rg[:,i], sim[:, i], band[i], delay, 25, dlyPrev, steps=10)
-            delay = totalDelay(psi, band[i])[0]
-
+            try:
+                delay = totalDelay(psi, band[i])[0]
+            except IndexError:
+                print()
+                return 0,0,0,0
             psi = find_distortion(rg[:,i], sim[:, i], band[i], delay, 5, dlyPrev, steps=20)
             delay = totalDelay(psi, band[i])[0]
             dlyPrev = delay
