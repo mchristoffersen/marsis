@@ -112,10 +112,7 @@ def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
         dDly = np.abs(dly - delayPrev)
         res += dDly * 1e-5
 
-    # print(np.nanmin(res), np.nanmax(res))
-
-    # nanpct = np.sum(np.isnan(res))/(res.shape[0]*res.shape[1]*res.shape[2])
-    # print(nanpct)
+    nanpct = np.sum(np.isnan(res))/(res.shape[0]*res.shape[1]*res.shape[2])
     foc = np.where(res == np.nanmin(res))
 
     op1 = psi1[foc[0]]
@@ -142,7 +139,7 @@ def mcmichael(edr, sim):
 
     outrg = {}
     outpsi = {}
-    for f in ["F1", "F2"]:
+    for f in ["F2"]:
         # Pulse commpress
         data_baseband = quadMixShift(edr.data["ZERO_" + f])
         data_baseband = np.vstack(
@@ -176,30 +173,20 @@ def mcmichael(edr, sim):
         # Find phase distortion to correct each trace
         psis = [None] * rg.shape[1]
         dlyPrev = None
-        for i in tqdm.tqdm(range(rg.shape[1]), disable=False):
+        for i in tqdm.tqdm(range(rg.shape[1]), disable=True):
             if band[i] != band[i - 1]:  # Reset prev delay if band chnage
                 dlyPrev = None
 
-            psi = find_distortion(
-                rg[:, i], sim[:, i], band[i], delayEst[i], 100, dlyPrev, steps=10
-            )
-            delay = totalDelay(psi, band[i])[0]
-            psis0 = psi[:]
-            delay0 = delay
+            delay = delayEst[i]
+            delayBound = [125, 25, 5, 1]
+            steps = [10, 10, 20, 40]
 
-            psi = find_distortion(
-                rg[:, i], sim[:, i], band[i], delay, 25, dlyPrev, steps=10
-            )
-            delay = totalDelay(psi, band[i])[0]
+            for j in range(len(steps)):
+                psi = find_distortion(
+                    rg[:, i], sim[:, i], band[i], delay, delayBound[j], dlyPrev, steps=steps[j]
+                )
+                delay = totalDelay(psi, band[i])[0]
 
-            psi = find_distortion(
-                rg[:, i], sim[:, i], band[i], delay, 5, dlyPrev, steps=20
-            )
-            delay = totalDelay(psi, band[i])[0]
-            psi = find_distortion(
-                rg[:, i], sim[:, i], band[i], delay, 1, dlyPrev, steps=30
-            )
-            delay = totalDelay(psi, band[i])[0]
             dlyPrev = delay
             psis[i] = psi
 
