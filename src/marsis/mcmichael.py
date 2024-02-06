@@ -5,6 +5,7 @@ import scipy.optimize
 import tqdm
 
 from marsis.util import arangeT, trigDelay, refChirp, pulseCompressTrig, quadMixShift
+import marsis.plain
 from marsis import log
 
 
@@ -135,6 +136,10 @@ def mcmichael(edr, sim):
     # Reference chirp
     chirp = refChirp()
 
+    # No correction multilook radargrams
+    rgml = {}
+    rgml["F1"], rgml["F2"] = marsis.plain(edr)
+
     outrg = {}
     outpsi = {}
     for f in ["F1", "F2"]:
@@ -153,7 +158,8 @@ def mcmichael(edr, sim):
         band = [bands[i] for i in edr.ost["DCG_CONFIGURATION_" + f]]
 
         # Rough delay estimate
-        delayEst = np.argmax(rg, axis=0) - np.argmax(sim, axis=0)
+        delayEst = np.argmax(rgml[f], axis=0) - np.argmax(sim, axis=0)
+
         n = 10
         delayEst = (
             np.convolve(
@@ -162,8 +168,10 @@ def mcmichael(edr, sim):
             / n
         )
         delayEst = delayEst[:-n]
-        plt.plot(delayEst)
-        plt.show()
+
+        # Clip to reasonable bounds
+        delayEst = np.maximum(0, delayEst)
+        delayEst = np.minimum(512, delayEst)
 
         # Find phase distortion to correct each trace
         psis = [None] * rg.shape[1]
@@ -182,22 +190,19 @@ def mcmichael(edr, sim):
             psi = find_distortion(
                 rg[:, i], sim[:, i], band[i], delay, 25, dlyPrev, steps=10
             )
+            delay = totalDelay(psi, band[i])[0]
 
-            try:
-                delay = totalDelay(psi, band[i])[0]
-            except IndexError:
-                print(psis0)
-                print(delay0)
-                print(psi)
-                return 0, 0, 0, 0
             psi = find_distortion(
                 rg[:, i], sim[:, i], band[i], delay, 5, dlyPrev, steps=20
+            )
+            delay = totalDelay(psi, band[i])[0]
+            psi = find_distortion(
+                rg[:, i], sim[:, i], band[i], delay, 1, dlyPrev, steps=30
             )
             delay = totalDelay(psi, band[i])[0]
             dlyPrev = delay
             psis[i] = psi
 
-        pc = np.zeros_like(rg)
         rgs = {}
         for dop in ["MINUS1", "ZERO", "PLUS1"]:
             data_baseband = quadMixShift(edr.data[dop + "_" + f])
@@ -210,6 +215,7 @@ def mcmichael(edr, sim):
             rgs[dop] = pulseCompressTrig(data_baseband, chirp, trig[f])
 
         # Make radargram
+        pc = np.zeros(rg.shape, np.float32)
         for i in range(pc.shape[1]):
             for dop in ["MINUS1", "ZERO", "PLUS1"]:
                 pc[:, i] += np.abs(
@@ -227,6 +233,6 @@ def mcmichael(edr, sim):
     for f in ["F1", "F2"]:
         outrg[f] = outrg[f][:512, :]  # Crop away padding
         mv = np.mean(outrg[f][:20, :], axis=0)
-        outrg["f"] /= mv[np.newaxis, :]
+        outrg[f] /= mv[np.newaxis, :]
 
     return outrg["F1"], outrg["F2"], outpsi["F1"], outpsi["F2"]
