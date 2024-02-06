@@ -33,5 +33,5 @@ documentation = "https://github.com/mchristoffersen/marsis/wiki"
 repository = "https://github.com/mchristoffersen/marsis"
 
 [project.scripts]
-marsis_process = "marsis.bin.marsis_processor:main"
-marsis_download = "marsis.bin.marsis_download:main"
+marsis-process = "marsis.bin.marsis_processor:main"
+marsis-download = "marsis.bin.marsis_download:main"

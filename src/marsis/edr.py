@@ -119,7 +119,7 @@ class EDR:
 
     def decompress(self, trace, exp):
         sign = (-1) ** (trace >> 7)  # Sign bit
-        mantissa = 1 + ((trace & 0x7F) / (2.0 ** 7))
+        mantissa = 1 + ((trace & 0x7F) / (2.0**7))
         # mantissa = trace & 0x7F
         trace = sign * mantissa * (2 ** (exp - 127))
         return trace

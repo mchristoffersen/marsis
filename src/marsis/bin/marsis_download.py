@@ -9,6 +9,7 @@ import marsis
 
 # TODO: add stdin input
 
+
 # To print failure messages and exit
 def fail(msg):
     print("\033[91m" + msg + "\033[0m", file=sys.stderr)

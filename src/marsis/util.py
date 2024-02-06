@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 def arangeT(tstart, tstop, fs):
     """Generate a uniformly sampled timeseries.
 
@@ -69,7 +70,7 @@ def refChirp(f0=-0.5e6, f1=0.5e6, m=4.0e9, fs=1.4e6):
     if len(t) == 0:  # In case m is very quick, spit out one sample
         t = np.array([1.0 / fs])
 
-    phi = np.pi * (2 * f0 * t + m * (t ** 2))  # phase
+    phi = np.pi * (2 * f0 * t + m * (t**2))  # phase
     chirp = -1 * np.sin(phi) + 1j * np.cos(phi)  # chirp
     return chirp
 
@@ -97,7 +98,7 @@ def quadMixShift(x, fShift=-0.7e6, fs=1.4e6):
     case each "column" (constnt axis 0) is treated independently.
     """
     # Handle single traces
-    if(len(x.shape) == 1):
+    if len(x.shape) == 1:
         x = x[:, np.newaxis]
 
     # Generate time array
@@ -107,7 +108,7 @@ def quadMixShift(x, fShift=-0.7e6, fs=1.4e6):
     y = np.exp(2 * np.pi * 1j * fShift * t)[:, np.newaxis]
 
     # Mix
-    x_sh = x*y
+    x_sh = x * y
 
     # Do mixing
     return x_sh
@@ -136,17 +137,17 @@ def pulseCompressTrig(data, chirp, ttrig, fs=1.4e6):
     -----
     """
     # Check dimensions
-    if(len(data.shape) != 2):
+    if len(data.shape) != 2:
         raise ValueError("data must be 2D")
-    if(len(chirp.shape) != 1):
+    if len(chirp.shape) != 1:
         raise ValueError("chirp must be 1D")
-    if(len(ttrig.shape) != 1):
+    if len(ttrig.shape) != 1:
         raise ValueError("ttrig must be 1D")
-    if(ttrig.shape[0] != data.shape[1]):
+    if ttrig.shape[0] != data.shape[1]:
         raise ValueError("ttrig must have entry for each column of data")
-    if(chirp.shape[0] > data.shape[0]):
+    if chirp.shape[0] > data.shape[0]:
         raise ValueError("chirp cannot be longer than number of rows in data")
-                
+
     # Zero pad chirp
     chirp = np.append(chirp, np.zeros(data.shape[0] - len(chirp)))
     CHIRP = np.fft.fft(chirp)
@@ -154,11 +155,15 @@ def pulseCompressTrig(data, chirp, ttrig, fs=1.4e6):
     # Angular frequency vector for trigger removal
     w = (np.fft.fftfreq(len(chirp), d=1.0 / fs) * 2 * np.pi)[:, np.newaxis]
     ttrig = ttrig[np.newaxis, :]
-    
+
     # Pulse compress
-    PC = np.fft.fft(data, axis=0) * np.conj(np.fft.fft(chirp))[:, np.newaxis] * np.exp(-1j * w * ttrig)
+    PC = (
+        np.fft.fft(data, axis=0)
+        * np.conj(np.fft.fft(chirp))[:, np.newaxis]
+        * np.exp(-1j * w * ttrig)
+    )
     pc = np.fft.ifft(PC, axis=0)
-    
+
     return pc
 
 

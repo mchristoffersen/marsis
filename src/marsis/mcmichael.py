@@ -29,50 +29,52 @@ def distortion(psis, n, band, fs=1.4e6):
     phase = np.exp(
         ((-1j * 2 * np.pi) / c)
         * (
-            (((8.98 ** 2) * psis[0]) / f)
-            + (((8.98 ** 4) * psis[1]) / (3 * (f ** 3)))
-            + (((8.98 ** 6) * psis[2]) / (8 * (f ** 5)))
+            (((8.98**2) * psis[0]) / f)
+            + (((8.98**4) * psis[1]) / (3 * (f**3)))
+            + (((8.98**6) * psis[2]) / (8 * (f**5)))
         )
     )
-    
+
     return phase
- 
+
+
 def obj_func(psis, trace, sim, band, plot=False):
     # Make sure dims match
     if len(sim.shape) == 1:
         sim = sim[:, np.newaxis]
 
-    pc = np.fft.ifft(trace*distortion(psis, len(trace), band), axis=0)
+    pc = np.fft.ifft(trace * distortion(psis, len(trace), band), axis=0)
 
     # Normalize simulation and pulse compressed trace
-    sim = sim/np.max(sim)
-    pc = np.abs(pc)/np.max(np.abs(pc))
-    pc = pc[:len(sim)]
-    
+    sim = sim / np.max(sim)
+    pc = np.abs(pc) / np.max(np.abs(pc))
+    pc = pc[: len(sim)]
+
     if plot:
-        #plt.figure()
-        #print(np.abs(distortion(psis, len(trace), band)))
+        # plt.figure()
+        # print(np.abs(distortion(psis, len(trace), band)))
         plt.figure()
         plt.plot(pc)
-        #ax2 = plt.gca().twinx()
+        # ax2 = plt.gca().twinx()
         plt.plot(sim)
         plt.show()
-            
+
     num = np.sum(np.squeeze(pc**2) * np.squeeze(sim**2))
     srf = np.argmax(sim)
-    denom = np.sum(pc[0:srf])**2
+    denom = np.sum(pc[0:srf]) ** 2
 
-    cost = -num /(denom ** 2)
+    cost = -num / (denom**2)
 
-    #print(cost, dn, cost+dn)
-    
+    # print(cost, dn, cost+dn)
+
     return cost
+
 
 def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
     # Find min/max psi bounds based on delay
     delayMax = delay + delayBound
     delayMin = max(0, delay - delayBound)
-    
+
     # McMichael 2017 Table 1
     psi1C = {1: 8.71e-8, 3: 3.04e-8, 4: 1.7e-8, 5: 1.08e-8}
     psi2C = {1: 2.43e-6, 3: 2.83e-7, 4: 8.75e-8, 5: 3.54e-8}
@@ -103,16 +105,16 @@ def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
                         [psi1[i], psi2[j], psi3[k]], trace, sim, band
                     )
                     dly[i, j, k] = gDelay
-    
-    if(delayPrev is not None):
-        # Weight objective function based on closeness to previous delay
-        dDly = np.abs(dly-delayPrev)
-        res += (dDly*1e-5)
-    
-    #print(np.nanmin(res), np.nanmax(res))
 
-    #nanpct = np.sum(np.isnan(res))/(res.shape[0]*res.shape[1]*res.shape[2])
-    #print(nanpct)
+    if delayPrev is not None:
+        # Weight objective function based on closeness to previous delay
+        dDly = np.abs(dly - delayPrev)
+        res += dDly * 1e-5
+
+    # print(np.nanmin(res), np.nanmax(res))
+
+    # nanpct = np.sum(np.isnan(res))/(res.shape[0]*res.shape[1]*res.shape[2])
+    # print(nanpct)
     foc = np.where(res == np.nanmin(res))
 
     op1 = psi1[foc[0]]
@@ -120,7 +122,7 @@ def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
     op3 = psi3[foc[2]]
 
     return np.array([op1, op2, op3])
-    
+
 
 def mcmichael(edr, sim):
     # Load clutter sim
@@ -129,7 +131,7 @@ def mcmichael(edr, sim):
     # Trigger delay
     trig = {}
     trig["F1"], trig["F2"] = trigDelay(edr)
-    
+
     # Reference chirp
     chirp = refChirp()
 
@@ -138,36 +140,59 @@ def mcmichael(edr, sim):
     for f in ["F1", "F2"]:
         # Pulse commpress
         data_baseband = quadMixShift(edr.data["ZERO_" + f])
-        data_baseband = np.vstack((data_baseband, np.zeros((512, data_baseband.shape[1]), dtype=np.complex128)))
+        data_baseband = np.vstack(
+            (
+                data_baseband,
+                np.zeros((512, data_baseband.shape[1]), dtype=np.complex128),
+            )
+        )
         rg = pulseCompressTrig(data_baseband, chirp, trig[f])
 
         # Get bands
         bands = [1.8e6, 3e6, 4e6, 5e6]
-        band  = [bands[i] for i in edr.ost["DCG_CONFIGURATION_" + f]]
+        band = [bands[i] for i in edr.ost["DCG_CONFIGURATION_" + f]]
 
         # Rough delay estimate
         delayEst = np.argmax(rg, axis=0) - np.argmax(sim, axis=0)
         n = 10
-        delayEst = np.convolve(np.append(delayEst, np.ones(n)*delayEst[-1]), np.ones(n), mode="same") / n
-        delayEst = delayEst[:-n] 
+        delayEst = (
+            np.convolve(
+                np.append(delayEst, np.ones(n) * delayEst[-1]), np.ones(n), mode="same"
+            )
+            / n
+        )
+        delayEst = delayEst[:-n]
+        plt.plot(delayEst)
+        plt.show()
 
         # Find phase distortion to correct each trace
-        psis = [None]*rg.shape[1]
+        psis = [None] * rg.shape[1]
         dlyPrev = None
         for i in tqdm.tqdm(range(rg.shape[1]), disable=False):
-            if(band[i] != band[i-1]): # Reset prev delay if band chnage
+            if band[i] != band[i - 1]:  # Reset prev delay if band chnage
                 dlyPrev = None
 
-            psi = find_distortion(rg[:,i], sim[:, i], band[i], delayEst[i], 100, dlyPrev, steps=10)
+            psi = find_distortion(
+                rg[:, i], sim[:, i], band[i], delayEst[i], 100, dlyPrev, steps=10
+            )
             delay = totalDelay(psi, band[i])[0]
+            psis0 = psi[:]
+            delay0 = delay
 
-            psi = find_distortion(rg[:,i], sim[:, i], band[i], delay, 25, dlyPrev, steps=10)
+            psi = find_distortion(
+                rg[:, i], sim[:, i], band[i], delay, 25, dlyPrev, steps=10
+            )
+
             try:
                 delay = totalDelay(psi, band[i])[0]
             except IndexError:
-                print()
-                return 0,0,0,0
-            psi = find_distortion(rg[:,i], sim[:, i], band[i], delay, 5, dlyPrev, steps=20)
+                print(psis0)
+                print(delay0)
+                print(psi)
+                return 0, 0, 0, 0
+            psi = find_distortion(
+                rg[:, i], sim[:, i], band[i], delay, 5, dlyPrev, steps=20
+            )
             delay = totalDelay(psi, band[i])[0]
             dlyPrev = delay
             psis[i] = psi
@@ -176,26 +201,32 @@ def mcmichael(edr, sim):
         rgs = {}
         for dop in ["MINUS1", "ZERO", "PLUS1"]:
             data_baseband = quadMixShift(edr.data[dop + "_" + f])
-            data_baseband = np.vstack((data_baseband, np.zeros((512, data_baseband.shape[1]), dtype=np.complex128)))
+            data_baseband = np.vstack(
+                (
+                    data_baseband,
+                    np.zeros((512, data_baseband.shape[1]), dtype=np.complex128),
+                )
+            )
             rgs[dop] = pulseCompressTrig(data_baseband, chirp, trig[f])
 
         # Make radargram
         for i in range(pc.shape[1]):
             for dop in ["MINUS1", "ZERO", "PLUS1"]:
-                pc[:,i] += np.abs(np.fft.ifft(np.fft.fft(rgs[dop][:,i], axis=0)*distortion(psis[i], rgs[dop].shape[0], band[i]), axis=0))
+                pc[:, i] += np.abs(
+                    np.fft.ifft(
+                        np.fft.fft(rgs[dop][:, i], axis=0)
+                        * distortion(psis[i], rgs[dop].shape[0], band[i]),
+                        axis=0,
+                    )
+                )
 
         outrg[f] = pc[:]
         outpsi[f] = psis[:]
 
-    # Normalize to background
+    # Normalize to background (first 20 samples)
     for f in ["F1", "F2"]:
-        outrg[f] = outrg[f][:512,:]
-        kernel = np.ones(32)
-        for i in range(outrg[f].shape[1]):
-            smooth = np.correlate(outrg[f][:, i], kernel, mode="valid")
-            ms = np.min(smooth)
-            if ms == 0:
-                ms = 1
-            outrg[f][:, i] = outrg[f][:, i] / ms
+        outrg[f] = outrg[f][:512, :]  # Crop away padding
+        mv = np.mean(outrg[f][:20, :], axis=0)
+        outrg["f"] /= mv[np.newaxis, :]
 
     return outrg["F1"], outrg["F2"], outpsi["F1"], outpsi["F2"]

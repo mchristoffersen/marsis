@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 from .util import refChirp, quadMixShift, pulseCompressTrig, trigDelay
 
+
 def plain(edr):
     dlyF1, dlyF2 = trigDelay(edr)
 
@@ -10,12 +11,12 @@ def plain(edr):
     chirp = refChirp()
 
     rgF1 = np.zeros(edr.data["ZERO_F1"].shape, dtype=np.float32)
-    for filt  in ["MINUS1_F1", "ZERO_F1", "PLUS1_F1"]:
+    for filt in ["MINUS1_F1", "ZERO_F1", "PLUS1_F1"]:
         data_baseband = quadMixShift(edr.data[filt])
         rgF1 += np.abs(pulseCompressTrig(data_baseband, chirp, dlyF1))
 
     rgF2 = np.zeros(edr.data["ZERO_F2"].shape, dtype=np.float32)
-    for filt  in ["MINUS1_F2", "ZERO_F2", "PLUS1_F2"]:
+    for filt in ["MINUS1_F2", "ZERO_F2", "PLUS1_F2"]:
         DATA_BASEBAND = quadMixShift(edr.data[filt])
         rgF2 += np.abs(pulseCompressTrig(data_baseband, chirp, dlyF2))
 

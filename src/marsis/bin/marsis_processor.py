@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 
 import argparse
@@ -9,6 +8,7 @@ import re
 import numpy as np
 
 import marsis
+
 
 # To print failure messages and exit
 def fail(msg):
@@ -41,7 +41,7 @@ def process(args):
         fmt = "%.6f,%.6f,%.3f,%.1f,%.1f,%.6e,%.6e"
     elif args.method == "mcmichael":
         f1, f2, f1_psis_list, f2_psis_list = marsis.mcmichael(edr, args.sim)
-        if(np.all(f1) == 0 and np.all(f2) == 0):
+        if np.all(f1) == 0 and np.all(f2) == 0:
             print(name)
             exit()
         f1_psis = {}

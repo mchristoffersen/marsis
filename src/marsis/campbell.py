@@ -27,7 +27,7 @@ def contrastFit(DATA, ttrig, init=None):
     # Least squares fit
     b = m[np.argmin(c, axis=0)]
     indx = lsindx(len(b))
-    A = np.vstack((indx ** 0, indx ** 1, indx ** 2, indx ** 3, indx ** 4, indx ** 5))
+    A = np.vstack((indx**0, indx**1, indx**2, indx**3, indx**4, indx**5))
     # print(A.T)
     init = scipy.linalg.lstsq(A.T, b)[0]
 
@@ -47,7 +47,7 @@ def bcOptimize(DATA, ttrig, init=None):
     # Least squares fit
     b = m[np.argmin(c, axis=0)]
     indx = lsindx(len(b))
-    A = np.vstack((indx ** 0, indx ** 1, indx ** 2, indx ** 3, indx ** 4, indx ** 5))
+    A = np.vstack((indx**0, indx**1, indx**2, indx**3, indx**4, indx**5))
     # print(A.T)
     init = scipy.linalg.lstsq(A.T, b)[0]
 
@@ -126,7 +126,7 @@ def pc(b, DATA, ttrig):
     # Calculate phase distortion from given coefficents
     m = np.zeros(len(indx), dtype=np.float128)
     for j in range(len(b)):
-        m += b[j] * (indx ** j)
+        m += b[j] * (indx**j)
 
     w = np.fft.fftfreq(DATA.shape[0], d=1.0 / 1.4e6) * 2 * np.pi  # Angular frequency
 
@@ -276,7 +276,7 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
 
             m = np.zeros(len(indx), dtype=np.float128)
             for k in range(len(bF1[i])):
-                m += bF1[i][k] * (indx ** k)
+                m += bF1[i][k] * (indx**k)
 
             rateF1[switchF1[i] : switchF1[i + 1]] = m
 
@@ -296,7 +296,7 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
 
             m = np.zeros(len(indx), dtype=np.float128)
             for k in range(len(bF2[i])):
-                m += bF2[i][k] * (indx ** k)
+                m += bF2[i][k] * (indx**k)
 
             rateF2[switchF2[i] : switchF2[i + 1]] = m
 
@@ -381,7 +381,7 @@ def campbell(edr, dem, cacheIono=False, cache="./", contrast=False):
     b = 3376200
 
     marsR = (a * b) / np.sqrt(
-        (a ** 2) * (np.sin(angle) ** 2) + (b ** 2) * (np.cos(angle) ** 2)
+        (a**2) * (np.sin(angle) ** 2) + (b**2) * (np.cos(angle) ** 2)
     )
 
     c = 299792458
