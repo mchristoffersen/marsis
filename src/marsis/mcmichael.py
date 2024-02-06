@@ -2,56 +2,10 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import scipy.optimize
+import tqdm
 
 from marsis.util import arangeT, trigDelay, refChirp, pulseCompressTrig, quadMixShift
 from marsis import log
-
-
-def psiGridSearch(trace, sim, tshift, band, dly, dlyBound, steps, plot=False):
-    # Find min/max psi bounds based on delay
-    dlyMax = dly + dlyBound
-    dlyMin = max(0, dly - dlyBound)
-
-    # McMichael 2017 Table 1
-    psi1C = {1: 8.71e-8, 3: 3.04e-8, 4: 1.7e-8, 5: 1.08e-8}
-    psi2C = {1: 2.43e-6, 3: 2.83e-7, 4: 8.75e-8, 5: 3.54e-8}
-    psi3C = {1: 4.50e-5, 3: 1.69e-6, 4: 2.85e-7, 5: 7.30e-8}
-    key = int(band / 1e6)
-    psi1Max = dlyMax / psi1C[key]
-    psi2Max = dlyMax / psi2C[key]
-    psi3Max = dlyMax / psi3C[key]
-
-    # Constrained grid search by dlyBound samples around dly
-    # print(psi1Min, psi2Min, psi3Min)
-    psi1 = np.linspace(0, psi1Max, steps)
-    psi2 = np.linspace(0, psi2Max, steps)
-    psi3 = np.linspace(0, psi3Max, steps)
-
-    res = np.zeros((steps, steps, steps))
-    for i in range(len(psi1)):
-        for j in range(len(psi2)):
-            for k in range(len(psi3)):
-                delay = totalDelay([psi1[i], psi2[j], psi3[k]], band)
-                if np.abs(delay - dly) > dlyBound:
-                    res[i, j, k] = 0
-                else:
-                    res[i, j, k] = obj_func(
-                        [psi1[i], psi2[j], psi3[[k]]], trace, tshift, band, sim
-                    )
-
-    foc = np.where(res == res.min())
-
-    if plot:
-        plt.figure()
-        img = res[:, :, foc[2]].reshape((steps, steps))
-        img = np.log(np.abs(img))
-        plt.imshow(img, aspect="auto")
-        plt.plot([foc[1]], [foc[0]], "r.")
-    op1 = psi1[foc[0]]
-    op2 = psi2[foc[1]]
-    op3 = psi3[foc[2]]
-
-    return [op1, op2, op3]
 
 
 def totalDelay(psis, band):
@@ -67,197 +21,178 @@ def totalDelay(psis, band):
     return coeff[0] * psis[0] + coeff[1] * psis[1] + coeff[2] * psis[2]
 
 
-def obj_func(psis, trace, ttrig, band, sim):
-    # Make sure dims match
-    if len(sim.shape) == 1:
-        sim = sim[:, np.newaxis]
-
-    pc = pc_phase(psis, trace, np.array([ttrig]), band)
-
-    # print(pc.shape, sim.shape)
-
-    num = np.sum((np.abs(pc) ** 2) * (sim ** 2))
-    srf = np.argmax(sim)
-    denom = np.sum(np.abs(pc[0:srf]) ** 2)
-
-    # plt.plot(np.abs(pc)**2/np.max(np.abs(pc)**2))
-    # plt.plot(np.abs(sim)**2/np.max(np.abs(sim)**2))
-    # plt.plot((np.abs(pc) ** 2) * (sim ** 2))
-    # plt.title(num)
-
-    # plt.show()
-
-    cost = -num/(denom ** 2)
-
-    if False:
-        plt.figure()
-        plt.plot(np.abs(pc))
-        plt.plot(np.abs(sim) * (np.max(np.abs(pc)) / np.max(sim)))
-        plt.title(psis)
-        plt.figure()
-        plt.plot(np.abs(pc[0:srf]))
-        plt.title(psis)
-        print(psis, num, denom)
-    return cost #*1e32
-
-
-def pc_phase(psis, trace, dly, band, fs=1.4e6):
-    # psis - ionospheric distortion coeffs
-    # TRACE - freq domain trace to pulse compress
-    # ttrig - trigger time correction
-    # f0 - carrier freq
-    (psi1, psi2, psi3) = psis
-    
-    #psi1 *= 1e10
-    #psi2 *= 1e10
-    #psi3 *= 1e10
-
-    # Reference chirp
-    chirp = refChirp()
-
-    # Shift data to baseband
-    trace = quadMixShift(trace)
-
-    # Pulse compress
-    w = np.fft.fftfreq(len(trace), d=1.0 / fs) * 2 * np.pi  # Angular frequency
-    f = (np.fft.fftfreq(len(trace), d=1.0 / fs) + band) / 1e6  # Frequency in MHz
+def distortion(psis, n, band, fs=1.4e6):
+    # Calculate distortion
+    f = (np.fft.fftfreq(n, d=1.0 / fs) + band) / 1e6  # Frequency in MHz
 
     c = 299792458  # speed of light m/s
     phase = np.exp(
         ((-1j * 2 * np.pi) / c)
         * (
-            (((8.98 ** 2) * psi1) / f)
-            + (((8.98 ** 4) * psi2) / (3 * (f ** 3)))
-            + (((8.98 ** 6) * psi3) / (8 * (f ** 5)))
+            (((8.98 ** 2) * psis[0]) / f)
+            + (((8.98 ** 4) * psis[1]) / (3 * (f ** 3)))
+            + (((8.98 ** 6) * psis[2]) / (8 * (f ** 5)))
         )
     )
+    
+    return phase
+ 
+def obj_func(psis, trace, sim, band, plot=False):
+    # Make sure dims match
+    if len(sim.shape) == 1:
+        sim = sim[:, np.newaxis]
 
-    PC = np.fft.fft(pulseCompressTrig(trace, chirp, dly), axis=0) * phase[:, np.newaxis]
+    pc = np.fft.ifft(trace*distortion(psis, len(trace), band), axis=0)
 
-    return np.fft.ifft(PC, axis=0)
-
-
-def pc_clutter(data, sim, ttrig, dcg_config, psis=None):
-    findPsis = False
-    if psis is None:
-        findPsis = True
-        psi_t = np.dtype(
-            [("psi1", np.float32), ("psi2", np.float32), ("psi3", np.float32)]
-        )
-        psis = np.empty(data.shape[1], dtype=psi_t)
-
-    bands = [1.8e6, 3e6, 4e6, 5e6]
-    pc = np.zeros(data.shape, dtype=np.float32)
-    for i in tqdm(range(data.shape[1])):
-        band = bands[dcg_config[i]]
-
-        trace = data[:, i]
-        simt = sim[:, i]
-        ttrigt = ttrig[i]
-
-        if findPsis:
-            if(i == 0):
-                x0 = [0,0,0]
-            else:
-                x0 = list(psis[i-1])
+    # Normalize simulation and pulse compressed trace
+    sim = sim/np.max(sim)
+    pc = np.abs(pc)/np.max(np.abs(pc))
+    pc = pc[:len(sim)]
+    
+    if plot:
+        #plt.figure()
+        #print(np.abs(distortion(psis, len(trace), band)))
+        plt.figure()
+        plt.plot(pc)
+        #ax2 = plt.gca().twinx()
+        plt.plot(sim)
+        plt.show()
             
-            # Grid search ionosphere
-            psi = psiGridSearch(trace, simt, ttrigt, band, 0, 256, 5)
-            dly = totalDelay(psi, band)[0]
+    num = np.sum(np.squeeze(pc**2) * np.squeeze(sim**2))
+    srf = np.argmax(sim)
+    denom = np.sum(pc[0:srf])**2
 
-            psi = psiGridSearch(trace, simt, ttrigt, band, dly, 50, 10)
-            dly = totalDelay(psi, band)[0]
+    cost = -num /(denom ** 2)
 
-            psi = psiGridSearch(trace, simt, ttrigt, band, dly, 5, 20)
-            #dly = totalDelay(psi, band)[0]
-                        
-            #psi = psiGridSearch(trace, simt, ttrigt, band, dly, 1, 30)
+    #print(cost, dn, cost+dn)
+    
+    return cost
 
-            #print()
-            #print("Nit:", res.nit)
-            #print("Hess:\n", res.hess_inv.todense())
-            #print("Jac:\n", res.jac)
-            #print("Psis", res.x)
-        
-            #print()
-            #print("Grid", obj_func(psi, TRACE, ttrigt, band, simt))
-            #print("Optim", obj_func(res.x, TRACE, ttrigt, band, simt))
+def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
+    # Find min/max psi bounds based on delay
+    delayMax = delay + delayBound
+    delayMin = max(0, delay - delayBound)
+    
+    # McMichael 2017 Table 1
+    psi1C = {1: 8.71e-8, 3: 3.04e-8, 4: 1.7e-8, 5: 1.08e-8}
+    psi2C = {1: 2.43e-6, 3: 2.83e-7, 4: 8.75e-8, 5: 3.54e-8}
+    psi3C = {1: 4.50e-5, 3: 1.69e-6, 4: 2.85e-7, 5: 7.30e-8}
+    key = int(band / 1e6)
+    psi1Max = delayMax / psi1C[key]
+    psi2Max = delayMax / psi2C[key]
+    psi3Max = delayMax / psi3C[key]
 
-            #dly = totalDelay(psi, band)
+    # Constrained grid search by delayBound samples around delay
+    psi1 = np.linspace(0, psi1Max, steps)
+    psi2 = np.linspace(0, psi2Max, steps)
+    psi3 = np.linspace(0, psi3Max, steps)
 
-            psis[i] = tuple(psi)
+    res = np.zeros((steps, steps, steps))
+    dly = np.zeros((steps, steps, steps))
+    dly[:] = np.nan
+    res[:] = np.nan
+    trace = np.fft.fft(trace, axis=0)
+    for i in range(len(psi1)):
+        for j in range(len(psi2)):
+            for k in range(len(psi3)):
+                gDelay = totalDelay([psi1[i], psi2[j], psi3[k]], band)
+                if np.abs(gDelay - delay) > delayBound:
+                    continue
+                else:
+                    res[i, j, k] = obj_func(
+                        [psi1[i], psi2[j], psi3[k]], trace, sim, band
+                    )
+                    dly[i, j, k] = gDelay
+    
+    if(delayPrev is not None):
+        # Weight objective function based on closeness to previous delay
+        dDly = np.abs(dly-delayPrev)
+        res += (dDly*1e-5)
+    
+    #print(np.nanmin(res), np.nanmax(res))
 
-        pc[:, i] = np.abs(pc_phase(psis[i], trace, np.array([ttrigt]), band))[:, 0]
+    #nanpct = np.sum(np.isnan(res))/(res.shape[0]*res.shape[1]*res.shape[2])
+    #print(nanpct)
+    foc = np.where(res == np.nanmin(res))
 
-        #plt.plot(pc[:,i])
-        #plt.show()
-        
-    if findPsis:
-        return pc, psis
-    else:
-        return pc
+    op1 = psi1[foc[0]]
+    op2 = psi2[foc[1]]
+    op3 = psi3[foc[2]]
 
+    return np.array([op1, op2, op3])
+    
 
 def mcmichael(edr, sim):
     # Load clutter sim
     sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
 
-    dlyF1, dlyF2 = trigDelay(edr)
+    # Trigger delay
+    trig = {}
+    trig["F1"], trig["F2"] = trigDelay(edr)
+    
+    # Reference chirp
+    chirp = refChirp()
 
-    # F1
-    # Find ionosphere coeffs with zero filt then apply to all filts
-    rgF1, psisF1 = pc_clutter(
-        edr.data["ZERO_F1"], sim, dlyF1, edr.ost["DCG_CONFIGURATION_F1"]
-    )
-    rgF1 += pc_clutter(
-        edr.data["MINUS1_F1"],
-        sim,
-        dlyF1,
-        edr.ost["DCG_CONFIGURATION_F1"],
-        psis=psisF1,
-    )
-    rgF1 += pc_clutter(
-        edr.data["PLUS1_F1"],
-        sim,
-        dlyF1,
-        edr.ost["DCG_CONFIGURATION_F1"],
-        psis=psisF1,
-    )
+    outrg = {}
+    outpsi = {}
+    for f in ["F1", "F2"]:
+        # Pulse commpress
+        data_baseband = quadMixShift(edr.data["ZERO_" + f])
+        data_baseband = np.vstack((data_baseband, np.zeros((512, data_baseband.shape[1]), dtype=np.complex128)))
+        rg = pulseCompressTrig(data_baseband, chirp, trig[f])
 
-    # F2
-    # Find ionosphere coeffs with zero filt then apply to all filts
-    rgF2, psisF2 = pc_clutter(
-        edr.data["ZERO_F2"], sim, dlyF2, edr.ost["DCG_CONFIGURATION_F2"]
-    )
-    rgF2 += pc_clutter(
-        edr.data["MINUS1_F2"],
-        sim,
-        dlyF2,
-        edr.ost["DCG_CONFIGURATION_F2"],
-        psis=psisF2,
-    )
-    rgF2 += pc_clutter(
-        edr.data["PLUS1_F2"],
-        sim,
-        dlyF2,
-        edr.ost["DCG_CONFIGURATION_F2"],
-        psis=psisF2,
-    )
+        # Get bands
+        bands = [1.8e6, 3e6, 4e6, 5e6]
+        band  = [bands[i] for i in edr.ost["DCG_CONFIGURATION_" + f]]
+
+        # Rough delay estimate
+        delayEst = np.argmax(rg, axis=0) - np.argmax(sim, axis=0)
+        n = 10
+        delayEst = np.convolve(np.append(delayEst, np.ones(n)*delayEst[-1]), np.ones(n), mode="same") / n
+        delayEst = delayEst[:-n] 
+
+        # Find phase distortion to correct each trace
+        psis = [None]*rg.shape[1]
+        dlyPrev = None
+        for i in tqdm.tqdm(range(rg.shape[1]), disable=False):
+            if(band[i] != band[i-1]): # Reset prev delay if band chnage
+                dlyPrev = None
+
+            psi = find_distortion(rg[:,i], sim[:, i], band[i], delayEst[i], 100, dlyPrev, steps=10)
+            delay = totalDelay(psi, band[i])[0]
+
+            psi = find_distortion(rg[:,i], sim[:, i], band[i], delay, 25, dlyPrev, steps=10)
+            delay = totalDelay(psi, band[i])[0]
+
+            psi = find_distortion(rg[:,i], sim[:, i], band[i], delay, 5, dlyPrev, steps=20)
+            delay = totalDelay(psi, band[i])[0]
+            dlyPrev = delay
+            psis[i] = psi
+
+        pc = np.zeros_like(rg)
+        rgs = {}
+        for dop in ["MINUS1", "ZERO", "PLUS1"]:
+            data_baseband = quadMixShift(edr.data[dop + "_" + f])
+            data_baseband = np.vstack((data_baseband, np.zeros((512, data_baseband.shape[1]), dtype=np.complex128)))
+            rgs[dop] = pulseCompressTrig(data_baseband, chirp, trig[f])
+
+        # Make radargram
+        for i in range(pc.shape[1]):
+            for dop in ["MINUS1", "ZERO", "PLUS1"]:
+                pc[:,i] += np.abs(np.fft.ifft(np.fft.fft(rgs[dop][:,i], axis=0)*distortion(psis[i], rgs[dop].shape[0], band[i]), axis=0))
+
+        outrg[f] = pc[:]
+        outpsi[f] = psis[:]
 
     # Normalize to background
-    kernel = np.ones(32)
-    for i in range(rgF1.shape[1]):
-        smooth = np.correlate(rgF1[:, i], kernel, mode="valid")
-        ms = np.min(smooth)
-        if ms == 0:
-            ms = 1
-        rgF1[:, i] = rgF1[:, i] / ms
+    for f in ["F1", "F2"]:
+        outrg[f] = outrg[f][:512,:]
+        kernel = np.ones(32)
+        for i in range(outrg[f].shape[1]):
+            smooth = np.correlate(outrg[f][:, i], kernel, mode="valid")
+            ms = np.min(smooth)
+            if ms == 0:
+                ms = 1
+            outrg[f][:, i] = outrg[f][:, i] / ms
 
-    for i in range(rgF2.shape[1]):
-        smooth = np.correlate(rgF2[:, i], kernel, mode="valid")
-        ms = np.min(smooth)
-        if ms == 0:
-            ms = 1
-        rgF2[:, i] = rgF2[:, i] / ms
-
-    return rgF1, rgF2, psisF1, psisF2
+    return outrg["F1"], outrg["F2"], outpsi["F1"], outpsi["F2"]
