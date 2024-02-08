@@ -9,8 +9,9 @@ import marsis.plain
 from marsis import log
 
 
-def totalDelay(psis, band):
-    # Total delay in samples
+def delayCoeffs(band):
+    # Return pure delay coefficents
+    # Table I from McMichael
     key = int(band / 1e6)
     coeffs = {
         1: [8.71e-8, 2.43e-6, 4.50e-5],
@@ -18,13 +19,26 @@ def totalDelay(psis, band):
         4: [1.7e-8, 8.75e-8, 2.85e-7],
         5: [1.08e-8, 3.54e-8, 7.30e-8],
     }
-    coeff = coeffs[key]
-    return coeff[0] * psis[0] + coeff[1] * psis[1] + coeff[2] * psis[2]
+    return coeffs[key]
+
+
+def psiScale(psis):
+    # Apply scaling to normalized psis
+    return psis*1e9
+
+
+def totalDelay(psis, band):
+    # Total delay in samples
+    coeff = delayCoeffs(band)
+    psis = psiScale(psis)
+    return np.squeeze(coeff[0] * psis[0] + coeff[1] * psis[1] + coeff[2] * psis[2])
 
 
 def distortion(psis, n, band, fs=1.4e6):
     # Calculate distortion
     f = (np.fft.fftfreq(n, d=1.0 / fs) + band) / 1e6  # Frequency in MHz
+
+    psis = psiScale(psis)
 
     c = 299792458  # speed of light m/s
     phase = np.exp(
@@ -39,7 +53,7 @@ def distortion(psis, n, band, fs=1.4e6):
     return phase
 
 
-def obj_func(psis, trace, sim, band, plot=False):
+def obj_func(psis, trace, sim, band, delayPrev, plot=False):
     # Make sure dims match
     if len(sim.shape) == 1:
         sim = sim[:, np.newaxis]
@@ -66,9 +80,14 @@ def obj_func(psis, trace, sim, band, plot=False):
 
     cost = -num / (denom**2)
 
+    if(delayPrev is not None):
+        #print("Penalty", np.abs(totalDelay(psis, band)-delayPrev))
+        #print(cost)
+        cost += np.abs(totalDelay(psis, band)-delayPrev)*1e-6
+        #print(cost)
     # print(cost, dn, cost+dn)
 
-    return cost
+    return cost*1e5
 
 
 def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
@@ -76,55 +95,79 @@ def find_distortion(trace, sim, band, delay, delayBound, delayPrev, steps=10):
     delayMax = delay + delayBound
     delayMin = max(0, delay - delayBound)
 
-    # McMichael 2017 Table 1
-    psi1C = {1: 8.71e-8, 3: 3.04e-8, 4: 1.7e-8, 5: 1.08e-8}
-    psi2C = {1: 2.43e-6, 3: 2.83e-7, 4: 8.75e-8, 5: 3.54e-8}
-    psi3C = {1: 4.50e-5, 3: 1.69e-6, 4: 2.85e-7, 5: 7.30e-8}
-    key = int(band / 1e6)
-    psi1Max = delayMax / psi1C[key]
-    psi2Max = delayMax / psi2C[key]
-    psi3Max = delayMax / psi3C[key]
+    coeffs = delayCoeffs(band)
 
-    # Constrained grid search by delayBound samples around delay
-    psi1 = np.linspace(0, psi1Max, steps)
-    psi2 = np.linspace(0, psi2Max, steps)
-    psi3 = np.linspace(0, psi3Max, steps)
+    psiBounds = []
+    for i in range(3):
+        coeffScale = psiScale(coeffs[i])
+        psiBounds.append((delayMin / coeffScale, delayMax / coeffScale))
 
-    res = np.zeros((steps, steps, steps))
-    dly = np.zeros((steps, steps, steps))
-    dly[:] = np.nan
-    res[:] = np.nan
+    psiSpace = []
+    for i in range(3):
+        nstep = int(psiBounds[i][1] / ((psiBounds[i][1]-psiBounds[i][0])/steps))
+        #print(nstep)
+        psiSpace.append(np.linspace(0, psiBounds[i][1], nstep))
+
+    # print("Delay bounds:", delayMin, delayMax)
+    # Get 10 steps between max and min
+
     trace = np.fft.fft(trace, axis=0)
-    for i in range(len(psi1)):
-        for j in range(len(psi2)):
-            for k in range(len(psi3)):
-                gDelay = totalDelay([psi1[i], psi2[j], psi3[k]], band)
-                if np.abs(gDelay - delay) > delayBound:
-                    continue
-                else:
-                    res[i, j, k] = obj_func(
-                        [psi1[i], psi2[j], psi3[k]], trace, sim, band
-                    )
-                    dly[i, j, k] = gDelay
 
-    if delayPrev is not None:
-        # Weight objective function based on closeness to previous delay
-        dDly = np.abs(dly - delayPrev)
-        res += dDly * 1e-5
+    # Find parameter sets with valid delay
+    pp1, pp2, pp3 = np.meshgrid(psiSpace[0], psiSpace[1], psiSpace[2], indexing="ij")
+    delayGrid = totalDelay(np.array([pp1, pp2, pp3]), band)
+    delayMask = np.abs(delayGrid - delay) <= delayBound
+    iv, jv, kv = np.where(delayMask)
 
-    nanpct = np.sum(np.isnan(res))/(res.shape[0]*res.shape[1]*res.shape[2])
+    # print("Parameter sets:", np.sum(delayMask))
+    # Only loop over those
+    res = np.zeros_like(delayGrid)
+    res[:] = np.nan
+    for l in range(len(iv)):
+        i = iv[l]
+        j = jv[l]
+        k = kv[l]
+        res[i, j, k] = obj_func(
+            np.array([pp1[i, j, k], pp2[i, j, k], pp3[i, j, k]]), trace, sim, band, delayPrev
+        )
+
+    #nanpct = np.sum(np.isnan(res)) / (res.shape[0] * res.shape[1] * res.shape[2])
+
     foc = np.where(res == np.nanmin(res))
+    if(len(foc[0]) > 1):
+        print(foc)
 
-    op1 = psi1[foc[0]]
-    op2 = psi2[foc[1]]
-    op3 = psi3[foc[2]]
+    op1 = pp1[foc]
+    op2 = pp2[foc]
+    op3 = pp3[foc]
+
+    # Plot three slices going through min
+    if False:
+        #print(op1, op2, op3)
+        fig, axs = plt.subplots(1, 3, figsize=(16, 4))
+        axs[0].pcolormesh(psiSpace[2], psiSpace[1], res[foc[0][0], :, :])
+        axs[0].plot(op3, op2, "r.")
+        axs[0].set(xlabel="$\psi_3$", ylabel="$\psi_2$")
+
+
+        axs[1].pcolormesh(psiSpace[2], psiSpace[0], res[:, foc[1][0], :])
+        axs[1].plot(op3, op1, "r.")
+        axs[1].set(xlabel="$\psi_3$", ylabel="$\psi_1$")
+
+        axs[2].pcolormesh(psiSpace[1], psiSpace[0], res[:, :, foc[2][0]])
+        axs[2].plot(op2, op1, "r.")
+        axs[2].set(xlabel="$\psi_2$", ylabel="$\psi_1$")
+
+        plt.show()
 
     return np.array([op1, op2, op3])
 
 
-def mcmichael(edr, sim, progress_bar=False):
+def mcmichael(edr, sim, progress_bar=True):
     # Load clutter sim
     sim = np.fromfile(sim, dtype=np.float32).reshape(edr.data["ZERO_F1"].shape)
+
+    sim = np.roll(sim, 8, axis=0)
 
     # Trigger delay
     trig = {}
@@ -139,7 +182,7 @@ def mcmichael(edr, sim, progress_bar=False):
 
     outrg = {}
     outpsi = {}
-    for f in ["F2"]:
+    for f in ["F1", "F2"]:
         # Pulse commpress
         data_baseband = quadMixShift(edr.data["ZERO_" + f])
         data_baseband = np.vstack(
@@ -174,23 +217,66 @@ def mcmichael(edr, sim, progress_bar=False):
         psis = [None] * rg.shape[1]
         dlyPrev = None
 
+        delayHist = []
         for i in tqdm.tqdm(range(rg.shape[1]), disable=not progress_bar):
             if band[i] != band[i - 1]:  # Reset prev delay if band chnage
                 dlyPrev = None
 
             delay = delayEst[i]
-            delayBound = [125, 25, 5, 1]
-            steps = [10, 10, 20, 40]
+            delayBound = [125, 25, 5, 2]
+            steps = [10, 10, 5, 5]
 
             for j in range(len(steps)):
+                # print("Given delay:", delay)
                 psi = find_distortion(
-                    rg[:, i], sim[:, i], band[i], delay, delayBound[j], dlyPrev, steps=steps[j]
+                    rg[:, i],
+                    sim[:, i],
+                    band[i],
+                    delay,
+                    delayBound[j],
+                    dlyPrev,
+                    steps=steps[j],
                 )
-                delay = totalDelay(psi, band[i])[0]
+                delay = totalDelay(psi, band[i])
 
+            #plt.plot(sim[:,i], 'k')
+            #ax2 = plt.gca().twinx()
+            #ax2.plot(np.abs(rg[:,i]), 'r')
+            #plt.show()
+                # print("Best delay:", delay)
+            # print("Final delay:", delay)
+            # print()
+            psi = np.squeeze(psi)
+            if(len(psi.shape) > 1):
+                print(psi.shape)
+                print(psi)
+            #bounds = scipy.optimize.Bounds(lb=(0, 0, 0), ub=(np.inf, np.inf, np.inf))
+            #optim = scipy.optimize.minimize(
+            #    obj_func,
+            #    psi,
+            #    args=(rg[:, i], sim[:, i], band[i], dlyPrev),
+            #    method="L-BFGS-B",
+            #    bounds=bounds,
+            #    options={"eps": 1e-5},
+            #)
+            #psi = optim.x
+
+            #plt.figure()
+            #plt.plot(sim[:,i], "k")
+            #corr = np.fft.ifft(np.fft.fft(rg[:, i])*distortion(psi, len(rg[:, i]), band[i]))
+            #print(corr.shape)
+            #ax2 = plt.gca().twinx()
+            #ax2.plot(np.abs(corr), "")
+            #plt.show()
+            delay = totalDelay(psi, band[i])
             dlyPrev = delay
+            delayHist.append(delay)
             psis[i] = psi
+            #if(i == 800):
+            #    break
 
+        plt.plot(delayHist)
+        plt.show()
         rgs = {}
         for dop in ["MINUS1", "ZERO", "PLUS1"]:
             data_baseband = quadMixShift(edr.data[dop + "_" + f])
@@ -205,22 +291,25 @@ def mcmichael(edr, sim, progress_bar=False):
         # Make radargram
         pc = np.zeros(rg.shape, np.float32)
         for i in range(pc.shape[1]):
+            if psis[i] is None:
+                psis[i] = (0, 0, 0)
             for dop in ["MINUS1", "ZERO", "PLUS1"]:
                 pc[:, i] += np.abs(
                     np.fft.ifft(
                         np.fft.fft(rgs[dop][:, i], axis=0)
-                        * distortion(psis[i], rgs[dop].shape[0], band[i]),
+                        * distortion(np.array(psis[i]), rgs[dop].shape[0], band[i]),
                         axis=0,
                     )
                 )
 
+        # Normalize to background (first 20 samples)
+        pc = pc[:512, :]  # Crop away padding
+        mv = np.mean(pc[:20, :], axis=0)
+        pc /= mv[np.newaxis, :]        
+        plt.imshow(np.log10(pc[:512,:]), aspect="auto")
+        plt.show()
+
         outrg[f] = pc[:]
         outpsi[f] = psis[:]
-
-    # Normalize to background (first 20 samples)
-    for f in ["F1", "F2"]:
-        outrg[f] = outrg[f][:512, :]  # Crop away padding
-        mv = np.mean(outrg[f][:20, :], axis=0)
-        outrg[f] /= mv[np.newaxis, :]
 
     return outrg["F1"], outrg["F2"], outpsi["F1"], outpsi["F2"]
